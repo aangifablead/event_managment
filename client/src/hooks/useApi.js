@@ -10,15 +10,19 @@ const useApi = () => {
         setError(null)
 
         try {
-            const response = await axios({
+            const config = {
                 url: `http://localhost:5000/api${endpoint}`,
                 method,
-                data: body,
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...customHeaders
-                }
-            })
+                headers: { ...customHeaders }
+            };
+
+            if (body) {
+                config.data = body;
+                config.headers['Content-Type'] = 'application/json';
+            }
+
+            const response = await axios(config);
+            
             setLoading(false)
             return { data: response.data, error: null }
         } catch (e) {
