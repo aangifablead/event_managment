@@ -1,1 +1,10 @@
 @import "tailwindcss";
+
+/* index.css */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  /* Prevent the body from scrolling; let the <main> tag in Layout handle it */
+  overflow: hidden; 
+}

@@ -33,22 +33,22 @@ const Navbar = ({ activePage, toggleSidebar }) => {
 
                 <div className="flex items-center gap-4 lg:gap-6">
                     <div className="flex items-center gap-3 border-l pl-4 lg:pl-6 border-slate-100">
-                        {isAuthenticated ? (
-                            <>
+                        {/* {isAuthenticated ? ( */}
+                            {/* <> */}
                                 <div className="hidden lg:block text-right">
                                     <p className="text-xs font-bold text-slate-800 leading-none">
                                         {user?.fullName || user?.name || "User"}
                                     </p>
                                 </div>
-                            </>
-                        ) : (
+                            {/* </> */}
+                        {/* ) : (
                             <button
                                 onClick={() => navigate('/auth')}
                                 className="text-xs font-bold text-blue-500 hover:underline uppercase"
                             >
                                 Login
                             </button>
-                        )}
+                        )} */}
                     </div>
                 </div>
             </div>
