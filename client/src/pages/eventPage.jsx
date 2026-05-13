@@ -1,19 +1,31 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { selectFilteredEvents, setFilters, setCurrentPage } from "../features/eventSlice";
+import { selectFilteredEvents, setFilters, setCurrentPage, setEvents } from "../features/eventSlice";
 import EventCard from "../components/EventCard";
 import AddEventModal from "../components/EventModal";
 import { Search } from "lucide-react";
+import useApi from "../hooks/useApi"; // Import Hook
 
 const EventPage = () => {
     const dispatch = useDispatch();
+    const { execute, loading } = useApi(); // Initialize Hook
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedEvent, setSelectedEvent] = useState(null); // Track event for edit
-    const [activeTab, setActiveTab] = useState("Active");
+    const [selectedEvent, setSelectedEvent] = useState(null);
     
     const filteredEvents = useSelector(selectFilteredEvents);
     const { currentPage, itemsPerPage } = useSelector((state) => state.events.pagination);
     const { search, category } = useSelector((state) => state.events.filters);
+
+    // Fetch data from API
+    useEffect(() => {
+        const fetchEvents = async () => {
+            const { data, error } = await execute('/events', 'GET');
+            if (data) {
+                dispatch(setEvents(data)); // Sync backend data with Redux
+            }
+        };
+        fetchEvents();
+    }, [execute, dispatch]);
 
     const { currentItems, totalPages, firstIdx, lastIdx } = useMemo(() => {
         const last = currentPage * itemsPerPage;
@@ -26,13 +38,11 @@ const EventPage = () => {
         };
     }, [filteredEvents, currentPage, itemsPerPage]);
 
-    // Opens modal for a new event
     const handleCreateClick = () => {
         setSelectedEvent(null);
         setIsModalOpen(true);
     };
 
-    // Opens modal for editing an existing event
     const handleEditClick = (event) => {
         setSelectedEvent(event);
         setIsModalOpen(true);
@@ -60,6 +70,7 @@ const EventPage = () => {
                         <option value="All Categories">All Categories</option>
                         <option value="Fashion">Fashion</option>
                         <option value="Music">Music</option>
+                        <option value="Tech">Tech</option>
                     </select>
                     <button 
                         onClick={handleCreateClick} 
@@ -70,11 +81,15 @@ const EventPage = () => {
                 </div>
             </div>
 
-            {currentItems.length > 0 ? (
+            {loading ? (
+                <div className="flex justify-center py-20">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600"></div>
+                </div>
+            ) : currentItems.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                     {currentItems.map((event) => (
                         <div 
-                            key={event.id} 
+                            key={event.id || event._id} 
                             onClick={() => handleEditClick(event)} 
                             className="cursor-pointer active:scale-[0.98] transition-transform"
                         >
@@ -91,6 +106,7 @@ const EventPage = () => {
                 </div>
             )}
 
+            {/* Pagination remains the same */}
             <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between">
                 <p className="text-sm text-slate-500">
                     Showing <span className="font-semibold text-slate-900">{firstIdx + 1}-{Math.min(lastIdx, filteredEvents.length)}</span> of <span className="font-semibold text-slate-900">{filteredEvents.length}</span>

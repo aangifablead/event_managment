@@ -2,88 +2,63 @@ import React from "react";
 import { MapPin, CalendarDays } from "lucide-react";
 
 const EventCard = ({ event }) => {
+    // Format price and handle field name variations
     const cleanPrice = Number(
         String(event?.price || 0).replace(/[^\d]/g, "")
     );
+    const title = event?.name || event?.title || "Music Festival";
+    const eventLocation = event?.venue || event?.location;
 
     return (
-        /* Added h-full and flex-col to the main container */
-        <div className="group bg-white border border-slate-200 rounded-[26px] overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full">
-
-            {/* IMAGE - Fixed height and aspect ratio */}
-            <div className="relative h-48 flex-shrink-0 overflow-hidden">
+        <div className="group bg-white border border-slate-200 rounded-[24px] overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col w-full max-w-[340px] mx-auto">
+            {/* Image Section - Height reduced for better proportions */}
+            <div className="relative h-44 flex-shrink-0 overflow-hidden">
                 <img
-                    src={event?.image || "../assets/concert.jpg"}
-                    alt={event?.name}
+                    src={event?.image || event?.coverImage || "/api/placeholder/400/320"}
+                    alt={title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/5 to-transparent" />
-
+                
+                {/* Badges - Slightly smaller and higher padding */}
                 <div className="absolute top-3 left-3">
-                    <span className="bg-white/90 backdrop-blur-md border border-white/60 text-slate-700 text-[10px] font-semibold px-3 py-1 rounded-full shadow-sm">
+                    <span className="bg-white/95 backdrop-blur-sm text-slate-800 text-[10px] font-bold px-3 py-1 rounded-full shadow-sm uppercase tracking-tight">
                         {event?.category || "Music"}
                     </span>
                 </div>
-
                 <div className="absolute top-3 right-3">
-                    <span className="bg-white/90 backdrop-blur-md border border-white/60 text-slate-700 text-[10px] font-semibold px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5">
+                    <span className="bg-white/95 backdrop-blur-sm text-slate-800 text-[10px] font-bold px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-pink-500"></span>
                         Active
                     </span>
                 </div>
             </div>
 
-            {/* CONTENT - Added flex-1 to push the footer to the bottom */}
-            <div className="p-4 flex flex-col flex-1">
-
-                {/* DATE */}
-                <div className="flex items-center gap-2 text-[12px] text-slate-400 mb-2">
-                    <CalendarDays size={13} />
-                    <span>
-                        {event?.date || "June 5, 2029"} •{" "}
-                        {event?.time || "8:00 PM"}
-                    </span>
+            {/* Content Section - Tightened padding */}
+            <div className="p-4 flex flex-col">
+                {/* Date/Time */}
+                <div className="flex items-center gap-1.5 text-[12px] text-slate-400 mb-1">
+                    <CalendarDays size={14} />
+                    <span>{event?.date} • {event?.time}</span>
                 </div>
 
-                {/* TITLE - Added min-h and h to keep vertical spacing consistent */}
-                <h3 className="text-[20px] font-bold text-slate-900 leading-tight mb-3 line-clamp-2 h-[52px] group-hover:text-violet-700 transition-colors">
-                    {event?.name || "Music Festival"}
+                {/* Title - Reduced margin and size for compact look */}
+                <h3 className="text-xl font-bold text-slate-900 leading-tight mb-2 line-clamp-1 group-hover:text-violet-700 transition-colors">
+                    {title}
                 </h3>
 
-                {/* LOCATION - flex-1 here ensures this area expands while keeping others aligned */}
-                <div className="flex items-center gap-2 text-sm text-slate-500 mb-5 flex-1">
-                    <MapPin
-                        size={14}
-                        className="text-pink-500 flex-shrink-0"
-                    />
-                    <span className="truncate">
-                        {event?.location}
-                        {event?.city ? `, ${event.city}` : ''}
+                {/* Location */}
+                <div className="flex items-center gap-1.5 text-slate-500 mb-4">
+                    <MapPin size={14} className="text-pink-500 flex-shrink-0" />
+                    <span className="text-[13px] truncate font-medium">
+                        {eventLocation}{event?.city ? `, ${event.city}` : ''}
                     </span>
                 </div>
 
-                {/* FOOTER - mt-auto ensures this always stays at the very bottom */}
-                <div className="flex items-center justify-between gap-4 mt-auto pt-2 border-t border-slate-50">
-
-                    {/* PROGRESS */}
-                    <div className="flex items-center gap-2 flex-1">
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex-1">
-                            <div
-                                className="h-full rounded-full bg-gradient-to-r from-pink-500 to-violet-600"
-                                style={{
-                                    width: `${event?.progress || 65}%`,
-                                }}
-                            />
-                        </div>
-
-                        <span className="text-[11px] font-semibold text-slate-500 min-w-[34px]">
-                            {event?.progress || 65}%
-                        </span>
-                    </div>
-
-                    {/* PRICE */}
-                    <div className="text-[24px] font-black text-pink-500 leading-none">
-                        ₹{cleanPrice}
+                {/* Footer - Unified Price Line */}
+                <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Price</span>
+                    <div className="text-2xl font-black text-pink-500 tracking-tight">
+                        ₹{cleanPrice.toLocaleString('en-IN')}
                     </div>
                 </div>
             </div>

@@ -1,27 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { addEvent, updateEvent, deleteEvent } from '../features/eventSlice';
+import useApi from '../hooks/useApi';
 
 const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
     const dispatch = useDispatch();
+    const { execute } = useApi();
     const today = new Date().toISOString().split('T')[0];
 
     const initialFormState = {
         title: '', category: 'Music', price: '', capacity: '',
         description: '', coverImage: null, gallery: [],
-        location: '', city: '', state: '', time: '', date: ''
+        venue: '', city: '', state: '', time: '', date: ''
     };
 
     const [formData, setFormData] = useState(initialFormState);
     const [errors, setErrors] = useState({});
 
-    // Sync form with editingEvent or reset for new event
+    // Helper: Convert File to Base64 String
+    const convertToBase64 = (file) => {
+        return new Promise((resolve, reject) => {
+            const fileReader = new FileReader();
+            fileReader.readAsDataURL(file);
+            fileReader.onload = () => resolve(fileReader.result);
+            fileReader.onerror = (error) => reject(error);
+        });
+    };
+
     useEffect(() => {
         if (editingEvent && isOpen) {
             setFormData({
-                ...initialFormState, // Start with defaults
-                ...editingEvent,     // Override with event data
-                gallery: editingEvent.gallery || [] // Explicitly ensure gallery is an array
+                ...initialFormState,
+                ...editingEvent,
+                title: editingEvent.title || editingEvent.name,
+                venue: editingEvent.venue || editingEvent.venue,
+                gallery: editingEvent.gallery || [],
+                coverImage: editingEvent.image || editingEvent.coverImage
             });
         } else if (!editingEvent && isOpen) {
             setFormData(initialFormState);
@@ -41,17 +55,17 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
         const { name, files } = e.target;
         if (name === 'coverImage') {
             setFormData(prev => ({ ...prev, coverImage: files[0] }));
-            setErrors(prev => ({ ...prev, coverImage: false }));
+            if (errors.coverImage) setErrors(prev => ({ ...prev, coverImage: false }));
         } else if (name === 'gallery') {
             setFormData(prev => ({ ...prev, gallery: Array.from(files) }));
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // coverImage is required only for new events (assuming it's already there for edits)
-        const requiredFields = ['title', 'price', 'capacity', 'description', 'time', 'date', 'location', 'city', 'state'];
+        // 1. Validation
+        const requiredFields = ['title', 'price', 'capacity', 'description', 'time', 'date', 'venue', 'city', 'state'];
         if (!editingEvent) requiredFields.push('coverImage');
 
         const newErrors = {};
@@ -64,18 +78,65 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
             return;
         }
 
-        if (editingEvent) {
-            dispatch(updateEvent(formData));
-        } else {
-            dispatch(addEvent({ ...formData, id: Date.now() }));
+        try {
+            // 2. Process Media: Convert new Files to Base64 strings
+            let mainImage = formData.coverImage;
+            if (formData.coverImage instanceof File) {
+                mainImage = await convertToBase64(formData.coverImage);
+            }
+
+            const galleryImages = await Promise.all(
+                formData.gallery.map(async (item) => {
+                    if (item instanceof File) return await convertToBase64(item);
+                    return item; // Keep existing URL strings
+                })
+            );
+
+            // 3. Construct JSON Payload (Mapping to Backend Names)
+            const payload = {
+                name: formData.title,
+                venue: formData.venue,
+                category: formData.category,
+                price: Number(formData.price),
+                capacity: Number(formData.capacity),
+                description: formData.description,
+                time: formData.time,
+                date: formData.date,
+                city: formData.city,
+                state: formData.state,
+                image: mainImage,           // Field: image (string)
+                gallery: galleryImages      // Field: gallery (array of strings)
+            };
+
+            // 4. API Request
+            if (editingEvent) {
+                const id = editingEvent.id || editingEvent._id;
+                const { data } = await execute(`/events/${id}`, 'PUT', payload);
+                if (data) {
+                    dispatch(updateEvent(data));
+                    onClose();
+                }
+            } else {
+                const { data } = await execute('/events', 'POST', payload);
+                if (data) {
+                    dispatch(addEvent(data));
+                    onClose();
+                }
+            }
+        } catch (err) {
+            console.error("Error submitting form:", err);
+            alert("Failed to process images. Ensure files aren't too large.");
         }
-        onClose();
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (window.confirm("Are you sure you want to delete this event?")) {
-            dispatch(deleteEvent(editingEvent.id));
-            onClose();
+            const id = editingEvent.id || editingEvent._id;
+            const { error } = await execute(`/events/${id}`, 'DELETE');
+            if (!error) {
+                dispatch(deleteEvent(id));
+                onClose();
+            }
         }
     };
 
@@ -84,7 +145,6 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
             <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
-
                 <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-start">
                     <div>
                         <h2 className="text-[22px] font-bold text-slate-900">
@@ -95,8 +155,8 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors text-2xl px-2">✕</button>
                 </div>
 
-                <form className="p-8 overflow-y-auto space-y-7 no-scrollbar">
-                    {/* Media Section */}
+                <form className="p-8 overflow-y-auto space-y-7 no-scrollbar" onSubmit={handleSubmit}>
+                    {/* Media Upload Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -122,7 +182,7 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
                         </div>
                     </div>
 
-                    {/* General Info */}
+                    {/* Basic Info */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Event Title {errors.title && <ErrorMsg />}</label>
@@ -134,15 +194,17 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
                                 <option>Music</option>
                                 <option>Fashion</option>
                                 <option>Tech</option>
+                                <option>Business</option>
+                                <option>Entertainment</option>
                             </select>
                         </div>
                     </div>
 
-                    {/* Location Details */}
+                    {/* Location Info */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-2">
-                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Venue {errors.location && <ErrorMsg />}</label>
-                            <input name="location" value={formData.location} onChange={handleChange} type="text" placeholder="Grand Arena" className={`w-full px-4 py-3 border rounded-xl text-sm outline-none ${errors.location ? 'border-rose-500' : 'border-slate-200 focus:border-[#FF3B8B]'}`} />
+                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Venue {errors.venue && <ErrorMsg />}</label>
+                            <input name="venue" value={formData.venue} onChange={handleChange} type="text" placeholder="Grand Arena" className={`w-full px-4 py-3 border rounded-xl text-sm outline-none ${errors.venue ? 'border-rose-500' : 'border-slate-200 focus:border-[#FF3B8B]'}`} />
                         </div>
                         <div className="space-y-2">
                             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">City {errors.city && <ErrorMsg />}</label>
@@ -154,7 +216,7 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
                         </div>
                     </div>
 
-                    {/* Meta details */}
+                    {/* Time and Price */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="space-y-2">
                             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Date {errors.date && <ErrorMsg />}</label>
@@ -174,12 +236,14 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
                         </div>
                     </div>
 
+                    {/* Description */}
                     <div className="space-y-2">
                         <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">About {errors.description && <ErrorMsg />}</label>
                         <textarea name="description" value={formData.description} onChange={handleChange} rows="3" className={`w-full px-4 py-3 border rounded-xl text-sm outline-none resize-none ${errors.description ? 'border-rose-500' : 'border-slate-200 focus:border-[#FF3B8B]'}`} />
                     </div>
                 </form>
 
+                {/* Actions */}
                 <div className="px-8 py-6 border-t border-slate-100 flex justify-between items-center bg-white rounded-b-2xl">
                     <div className="flex-1">
                         {editingEvent && (

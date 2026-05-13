@@ -1,6 +1,6 @@
 import { createSlice, createSelector } from '@reduxjs/toolkit';
 
-// Helper to load data from localStorage
+// Helper to load data from localStorage (Keep as fallback)
 const loadEvents = () => {
   try {
     const saved = localStorage.getItem('persisted_events');
@@ -23,40 +23,49 @@ const eventSlice = createSlice({
   name: 'events',
   initialState,
   reducers: {
+    // ADD THIS REDUCER: To set events from API
+    setEvents: (state, action) => {
+      state.items = action.payload;
+      // Optional: keep localStorage in sync
+      localStorage.setItem('persisted_events', JSON.stringify(state.items));
+    },
+    
     addEvent: (state, action) => {
-      const { title, price, category, coverImage, date, time, location, city } = action.payload;
-
-      const newEvent = {
+      // If action.payload already comes formatted from API, just push it
+      const eventToAdd = action.payload.id ? action.payload : {
         id: Date.now(),
-        name: title,
-        price: parseFloat(String(price).replace(/[$,]/g, '')),
-        category: category,
-        image: coverImage ? URL.createObjectURL(coverImage) : '/api/placeholder/400/320',
-        location: `${location}, ${city}`, // Combine for the UI display
+        name: action.payload.title,
+        price: parseFloat(String(action.payload.price).replace(/[$,]/g, '')),
+        category: action.payload.category,
+        image: action.payload.coverImage ? (typeof action.payload.coverImage === 'string' ? action.payload.coverImage : URL.createObjectURL(action.payload.coverImage)) : '/api/placeholder/400/320',
+        location: `${action.payload.location}, ${action.payload.city}`,
         progress: 0,
-        date: `${date} — ${time}`,
+        date: `${action.payload.date} — ${action.payload.time}`,
       };
 
-      state.items.unshift(newEvent);
+      state.items.unshift(eventToAdd);
       localStorage.setItem('persisted_events', JSON.stringify(state.items));
     },
-    // New: Remove an event by ID
+
     deleteEvent: (state, action) => {
-      state.items = state.items.filter(event => event.id !== action.payload);
+      state.items = state.items.filter(event => (event.id || event._id) !== action.payload);
       localStorage.setItem('persisted_events', JSON.stringify(state.items));
     },
-    // New: Update existing event details
+
     updateEvent: (state, action) => {
-      const index = state.items.findIndex(event => event.id === action.payload.id);
+      const id = action.payload.id || action.payload._id;
+      const index = state.items.findIndex(event => (event.id || event._id) === id);
       if (index !== -1) {
-        state.items[index] = { ...state.items[index], ...action.payload.updates };
+        state.items[index] = { ...state.items[index], ...action.payload };
         localStorage.setItem('persisted_events', JSON.stringify(state.items));
       }
     },
+
     setFilters: (state, action) => {
       state.filters = { ...state.filters, ...action.payload };
       state.pagination.currentPage = 1;
     },
+
     setCurrentPage: (state, action) => {
       state.pagination.currentPage = action.payload;
     }
@@ -70,12 +79,23 @@ export const selectFilteredEvents = createSelector(
   [selectAllItems, selectFilters],
   (items, filters) => {
     return items.filter(event => {
-      const matchesSearch = event.name.toLowerCase().includes(filters.search.toLowerCase());
+      // Handle both API 'name' and local 'title' variations
+      const name = event.name || event.title || "";
+      const matchesSearch = name.toLowerCase().includes(filters.search.toLowerCase());
       const matchesCat = filters.category === 'All Categories' || event.category === filters.category;
       return matchesSearch && matchesCat;
     });
   }
 );
 
-export const { addEvent, setFilters, setCurrentPage ,deleteEvent,updateEvent} = eventSlice.actions;
+// Added setEvents to the exports
+export const { 
+    setEvents, 
+    addEvent, 
+    setFilters, 
+    setCurrentPage, 
+    deleteEvent, 
+    updateEvent 
+} = eventSlice.actions;
+
 export default eventSlice.reducer;
