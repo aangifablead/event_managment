@@ -1,29 +1,42 @@
-import React, { useState } from 'react';
-import Sidebar from '../components/Sidebar';
-import Navbar from '../components/Navbar';
+import React, { useState } from "react";
+import Sidebar from "../components/Sidebar";
+import Navbar from "../components/Navbar";
 
 const Layout = ({ children }) => {
-
   const [activePage, setActivePage] = useState("Dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+
+      {/* Sidebar */}
       <Sidebar
         activePage={activePage}
         setActivePage={setActivePage}
         isOpen={isSidebarOpen}
         toggleSidebar={toggleSidebar}
       />
-      <div className="flex-1 flex flex-col min-w-0"> {/* Removed overflow-hidden here */}
+
+      {/* Main Section */}
+      <div className="flex-1 flex flex-col min-w-0">
+
+        {/* Navbar */}
         <Navbar
           activePage={activePage}
           toggleSidebar={toggleSidebar}
         />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-          {children}
+
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto bg-[#F8FAFC]">
+          <div className="px-5 py-4">
+           {children}
+          </div>
         </main>
+
       </div>
     </div>
   );
