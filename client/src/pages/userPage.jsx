@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import {setFilter,addUserToStore,updateUserInStore,removeUserFromStore,setUsers} from '../features/userSlice';
+import { setFilter, addUserToStore, updateUserInStore, removeUserFromStore, setUsers } from '../features/userSlice';
 import { Search, X, UserPlus, Edit2, Trash2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import useApi from '../hooks/useApi';
 
