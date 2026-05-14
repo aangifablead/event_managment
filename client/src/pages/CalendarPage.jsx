@@ -69,11 +69,24 @@ const CalendarPage = () => {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // NEW: Progress calculation helper
-    const calculateProgress = (booked, capacity) => {
-        if (!capacity) return 0;
-        const percentage = (booked / capacity) * 100;
-        return Math.min(percentage, 100); // Cap at 100%
+    // UPDATED: Logic for Ratio-based Colors and Labels
+    const getStatusConfig = (bookedCount, capacity) => {
+        const booked = bookedCount || 0;
+        const cap = capacity || 0;
+        const remaining = cap - booked;
+        const ratio = cap > 0 ? booked / cap : 0;
+        const progress = Math.min(Math.round(ratio * 100), 100);
+
+        if (remaining <= 0 && cap > 0) {
+            return { label: "SOLD OUT", bar: "bg-slate-300", text: "text-slate-500", bg: "bg-slate-100", dot: "bg-slate-400", progress: 100 };
+        }
+        if (ratio >= 0.9) {
+            return { label: "ALMOST FULL", bar: "bg-rose-500", text: "text-rose-600", bg: "bg-rose-50", dot: "bg-rose-500", progress };
+        }
+        if (ratio >= 0.5) {
+            return { label: "FILLING FAST", bar: "bg-amber-400", text: "text-amber-600", bg: "bg-amber-50", dot: "bg-amber-500", progress };
+        }
+        return { label: "AVAILABLE", bar: "bg-emerald-400", text: "text-emerald-600", bg: "bg-emerald-50", dot: "bg-emerald-500", progress };
     };
 
     const handleDateSelect = (monthIndex) => {
@@ -204,81 +217,98 @@ const CalendarPage = () => {
                     ${selectedEvent ? 'translate-x-0' : 'translate-x-full'}
                     shadow-2xl lg:shadow-none
                 `}>
-                    {selectedEvent && (
-                        <div className="flex flex-col h-full overflow-hidden">
-                            <div className="relative shrink-0 m-4 mb-2">
-                                <div className="aspect-video w-full overflow-hidden rounded-[24px]">
-                                    <img 
-                                        src={selectedEvent.displayImage} 
-                                        className="w-full h-full object-cover" 
-                                        alt="" 
-                                    />
-                                </div>
-                                <button 
-                                    onClick={() => setSelectedEvent(null)} 
-                                    className="absolute top-3 right-3 bg-black/40 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-black/60 transition-all"
-                                >
-                                    <LuX className="w-4 h-4" />
-                                </button>
-                            </div>
+                    {selectedEvent && (() => {
+                        const status = getStatusConfig(selectedEvent.bookedCount, selectedEvent.capacity);
+                        const remaining = Math.max(0, (selectedEvent.capacity || 0) - (selectedEvent.bookedCount || 0));
 
-                            <div className="px-6 py-2 flex-grow overflow-hidden flex flex-col">
-                                <div className="mb-4">
-                                    <h3 className="text-xl font-bold text-slate-900 leading-tight mb-1">
-                                        {selectedEvent.name}
-                                    </h3>
-                                    <span className="inline-block px-2 py-0.5 bg-pink-50 text-pink-500 rounded-md text-[10px] font-bold uppercase tracking-widest">
-                                        {selectedEvent.category}
-                                    </span>
+                        return (
+                            <div className="flex flex-col h-full overflow-hidden">
+                                <div className="relative shrink-0 m-4 mb-2">
+                                    <div className="aspect-video w-full overflow-hidden rounded-[24px]">
+                                        <img 
+                                            src={selectedEvent.displayImage} 
+                                            className="w-full h-full object-cover" 
+                                            alt="" 
+                                        />
+                                    </div>
+                                    <button 
+                                        onClick={() => setSelectedEvent(null)} 
+                                        className="absolute top-3 right-3 bg-black/40 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-black/60 transition-all"
+                                    >
+                                        <LuX className="w-4 h-4" />
+                                    </button>
                                 </div>
 
-                                <div className="space-y-3 mb-5">
-                                    <div className="flex items-center text-sm text-slate-600">
-                                        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center mr-3 shrink-0">
-                                            <LuCalendar className="text-slate-400 w-4 h-4" />
+                                <div className="px-6 py-2 flex-grow overflow-hidden flex flex-col">
+                                    <div className="mb-4">
+                                        <h3 className="text-xl font-bold text-slate-900 leading-tight mb-2">
+                                            {selectedEvent.name}
+                                        </h3>
+                                        {/* UPDATED: Category and Status Badge Layout based on image_95c755.png */}
+                                        <div className="flex items-center gap-2">
+                                            <span className="px-2.5 py-1 bg-pink-50 text-pink-500 rounded-md text-[10px] font-bold uppercase tracking-widest">
+                                                {selectedEvent.category}
+                                            </span>
+                                            <span className={`px-2.5 py-1 ${status.bg} ${status.text} rounded-md text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${status.dot} ${remaining > 0 ? 'animate-pulse' : ''}`}></span>
+                                                {status.label}
+                                            </span>
                                         </div>
-                                        <span className="font-medium text-slate-700 truncate">{selectedEvent.date} — {selectedEvent.displayTime}</span>
                                     </div>
-                                    <div className="flex items-center text-sm text-slate-600">
-                                        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center mr-3 shrink-0">
-                                            <LuMapPin className="text-slate-400 w-4 h-4" />
-                                        </div>
-                                        <span className="font-medium text-slate-700 truncate">{selectedEvent.displayLocation}</span>
-                                    </div>
-                                </div>
 
-                                {/* ADDED: PROGRESS BAR SECTION */}
-                                <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                    <div className="flex justify-between items-end mb-2">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Registration</span>
-                                        <span className="text-xs font-bold text-indigo-600">
-                                            {selectedEvent.bookedCount || 0} / {selectedEvent.capacity || 0}
-                                        </span>
-                                    </div>
-                                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                        <div 
-                                            className="bg-indigo-500 h-full rounded-full transition-all duration-1000"
-                                            style={{ width: `${calculateProgress(selectedEvent.bookedCount, selectedEvent.capacity)}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
-
-                                <div className="mt-auto pt-2 pb-6">
-                                    <div className="bg-[#F8FAFC] rounded-[24px] p-4 border border-slate-100">
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Starting from</span>
-                                                <div className="text-xl font-black text-slate-900">₹{selectedEvent.price?.toLocaleString() || '1,200'}</div>
+                                    <div className="space-y-3 mb-5">
+                                        <div className="flex items-center text-sm text-slate-600">
+                                            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center mr-3 shrink-0">
+                                                <LuCalendar className="text-slate-400 w-4 h-4" />
                                             </div>
-                                            <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-indigo-600 border border-slate-50">
-                                                <LuUsers className="w-5 h-5" />
+                                            <span className="font-medium text-slate-700 truncate">{selectedEvent.date} — {selectedEvent.displayTime}</span>
+                                        </div>
+                                        <div className="flex items-center text-sm text-slate-600">
+                                            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center mr-3 shrink-0">
+                                                <LuMapPin className="text-slate-400 w-4 h-4" />
+                                            </div>
+                                            <span className="font-medium text-slate-700 truncate">{selectedEvent.displayLocation}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* UPDATED: DYNAMIC PROGRESS BAR SECTION */}
+                                    <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <div className="flex justify-between items-end mb-2">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Registration</span>
+                                            <div className="text-right">
+                                                <span className={`text-xs font-bold ${status.text}`}>
+                                                    {status.progress}% Booked
+                                                </span>
+                                                <span className="block text-[10px] text-slate-400 font-medium">
+                                                    {remaining} slots left
+                                                </span>
                                             </div>
                                         </div>
+                                        <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                            <div 
+                                                className={`${status.bar} h-full rounded-full transition-all duration-1000`}
+                                                style={{ width: `${status.progress}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-auto pt-2 pb-6">
+                                        <div className="bg-[#F8FAFC] rounded-[24px] p-4 border border-slate-100">
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Starting from</span>
+                                                    <div className="text-xl font-black text-slate-900">₹{selectedEvent.price?.toLocaleString() || '1,200'}</div>
+                                                </div>
+                                                <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-indigo-600 border border-slate-50">
+                                                    <LuUsers className="w-5 h-5" />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )
+                    })()}
                 </div>
             </div>
 
