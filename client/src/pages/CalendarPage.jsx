@@ -207,23 +207,22 @@ const CalendarPage = () => {
                         />
                     </div>
                 </div>
-
                 {/* SIDEBAR DETAIL VIEW */}
                 <div className={`
-                        absolute inset-y-0 right-0 z-[120] w-full sm:w-[360px] 
-                        bg-white border-l border-slate-100 flex flex-col transition-transform duration-500
-                        h-full max-h-full overflow-hidden /* Prevents outer scroll */
-                        ${selectedEvent ? 'translate-x-0' : 'translate-x-full'}
-                        shadow-2xl lg:shadow-none`}>
+                    absolute inset-y-0 right-0 z-[120] w-full sm:w-[360px] md:w-[380px]
+                    bg-white border-l border-slate-100 flex flex-col transition-transform duration-500
+                    h-full max-h-screen overflow-hidden
+                    ${selectedEvent ? 'translate-x-0' : 'translate-x-full'}
+                    shadow-2xl lg:shadow-none`}>
                     {selectedEvent && (() => {
                         const status = getStatusConfig(selectedEvent.bookedCount, selectedEvent.capacity);
                         const remaining = Math.max(0, (selectedEvent.capacity || 0) - (selectedEvent.bookedCount || 0));
 
                         return (
-                            <div className="flex flex-col h-full">
-                                {/* Header Image - flex-shrink allows it to get smaller if space is tight */}
-                                <div className="relative shrink-1 min-h-[150px] m-4 mb-2">
-                                    <div className="h-full w-full overflow-hidden rounded-[24px]">
+                            <div className="flex flex-col h-full bg-white">
+                                {/* 1. IMAGE SECTION - Uses aspect-video to scale perfectly on mobile */}
+                                <div className="relative shrink-0 w-full p-3 md:p-4 pb-0">
+                                    <div className="aspect-video w-full overflow-hidden rounded-[20px] shadow-sm bg-slate-100">
                                         <img
                                             src={selectedEvent.displayImage}
                                             className="w-full h-full object-cover"
@@ -232,50 +231,54 @@ const CalendarPage = () => {
                                     </div>
                                     <button
                                         onClick={() => setSelectedEvent(null)}
-                                        className="absolute top-3 right-3 bg-black/40 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-black/60 transition-all"
+                                        className="absolute top-5 right-5 md:top-6 md:right-6 bg-black/40 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-black/60 transition-all z-10"
                                     >
-                                        <LuX className="w-4 h-4" />
+                                        <LuX className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
 
-                                {/* Content Area - flex-1 makes this take up remaining space */}
-                                <div className="px-6 py-2 flex-1 flex flex-col min-h-0">
-                                    <div className="mb-2 shrink-0">
-                                        <h3 className="text-xl font-bold text-slate-900 leading-tight mb-1 truncate">
+                                {/* 2. CONTENT AREA - flex-1 with overflow-y-auto handles small height screens */}
+                                <div className="px-5 py-3 flex-1 flex flex-col min-h-0 overflow-y-auto no-scrollbar">
+
+                                    {/* Title and Badges */}
+                                    <div className="mb-3 shrink-0">
+                                        <h3 className="text-lg md:text-xl font-bold text-slate-900 leading-tight mb-2">
                                             {selectedEvent.name}
                                         </h3>
-                                        <div className="flex items-center gap-2">
-                                            <span className="px-2 py-0.5 bg-pink-50 text-pink-500 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                                        <div className="flex flex-wrap gap-1.5">
+                                            <span className="px-2 py-0.5 bg-pink-50 text-pink-500 rounded-md text-[9px] font-bold uppercase tracking-wider border border-pink-100/30">
                                                 {selectedEvent.category}
                                             </span>
-                                            <span className={`px-2 py-0.5 ${status.bg} ${status.text} rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`}></span>
+                                            <span className={`px-2 py-0.5 ${status.bg} ${status.text} rounded-md text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 border border-current/10`}>
+                                                <span className={`w-1 h-1 rounded-full ${status.dot}`}></span>
                                                 {status.label}
                                             </span>
                                         </div>
                                     </div>
 
-                                    {/* Stats/Details - Reduced margins to save space */}
-                                    <div className="space-y-2 mb-3 shrink-0">
-                                        <div className="flex items-center text-xs text-slate-600">
-                                            <LuCalendar className="text-slate-400 mr-2 shrink-0" />
+                                    {/* Compact Details Section */}
+                                    <div className="space-y-2 mb-4 shrink-0 border-b border-slate-50 pb-4">
+                                        <div className="flex items-center text-[12px] text-slate-600">
+                                            <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center mr-2.5 shrink-0">
+                                                <LuCalendar className="text-slate-400 w-3.5 h-3.5" />
+                                            </div>
                                             <span className="font-medium text-slate-700 truncate">{selectedEvent.date}</span>
                                         </div>
-                                        <div className="flex items-center text-xs text-slate-600">
-                                            <LuMapPin className="text-slate-400 mr-2 shrink-0" />
+                                        <div className="flex items-center text-[12px] text-slate-600">
+                                            <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center mr-2.5 shrink-0">
+                                                <LuMapPin className="text-slate-400 w-3.5 h-3.5" />
+                                            </div>
                                             <span className="font-medium text-slate-700 truncate">{selectedEvent.displayLocation}</span>
                                         </div>
                                     </div>
 
-                                    {/* Progress Card - Fixed height/shrink-0 to ensure it's always seen */}
-                                    <div className="mb-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 shrink-0">
+                                    {/* Progress Card - Tightened margins */}
+                                    <div className="mb-4 p-3 bg-slate-50 rounded-[20px] border border-slate-100 shrink-0">
                                         <div className="flex justify-between items-end mb-1.5">
                                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Registration</span>
-                                            <div className="text-right">
-                                                <span className={`text-[10px] font-bold ${status.text}`}>{status.progress}% Booked</span>
-                                            </div>
+                                            <span className={`text-[10px] font-bold ${status.text}`}>{status.progress}% Booked</span>
                                         </div>
-                                        <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                        <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
                                             <div
                                                 className={`${status.bar} h-full rounded-full transition-all duration-1000`}
                                                 style={{ width: `${status.progress}%` }}
@@ -284,14 +287,14 @@ const CalendarPage = () => {
                                         <div className="mt-1 text-[9px] text-slate-400 text-right">{remaining} slots left</div>
                                     </div>
 
-                                    {/* Footer - Pushed to bottom */}
+                                    {/* 3. FOOTER - Pushed to bottom with mt-auto */}
                                     <div className="mt-auto pb-4 shrink-0">
-                                        <div className="bg-[#F8FAFC] rounded-[20px] p-3 border border-slate-100 flex justify-between items-center">
+                                        <div className="bg-[#F8FAFC] rounded-[20px] p-3 border border-slate-100 flex justify-between items-center shadow-sm">
                                             <div>
-                                                <span className="text-[9px] font-bold text-slate-400 uppercase">Starting from</span>
-                                                <div className="text-lg font-black text-slate-900">₹{selectedEvent.price || '1,200'}</div>
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Starting from</span>
+                                                <div className="text-xl font-black text-slate-900 leading-none mt-0.5">₹{selectedEvent.price || '1,200'}</div>
                                             </div>
-                                            <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center text-indigo-600 border border-slate-50">
+                                            <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center text-indigo-600 border border-slate-100">
                                                 <LuUsers className="w-4 h-4" />
                                             </div>
                                         </div>
