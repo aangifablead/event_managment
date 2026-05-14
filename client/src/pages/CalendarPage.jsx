@@ -1,9 +1,19 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import useApi from '../hooks/useApi';
-import { LuFilter, LuChevronDown, LuChevronLeft, LuChevronRight, LuCalendar, LuMapPin, LuX, LuCheck } from "react-icons/lu";
+import { 
+    LuFilter, 
+    LuChevronDown, 
+    LuChevronLeft, 
+    LuChevronRight, 
+    LuCalendar, 
+    LuMapPin, 
+    LuX, 
+    LuCheck,
+    LuUsers
+} from "react-icons/lu";
 
 const CalendarPage = () => {
     const calendarRef = useRef(null);
@@ -20,7 +30,7 @@ const CalendarPage = () => {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [activeFilter, setActiveFilter] = useState('All');
-    const [viewDate, setViewDate] = useState(new Date()); // Tracks the year/month for the picker
+    const [viewDate, setViewDate] = useState(new Date());
 
     const categories = ['All', 'Fashion', 'Music', 'Tech', 'Art'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -50,7 +60,7 @@ const CalendarPage = () => {
         fetchEvents();
     }, [execute]);
 
-    // Close dropdowns when clicking outside
+    // Handle Clicks Outside for Dropdowns
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsFilterOpen(false);
@@ -67,24 +77,30 @@ const CalendarPage = () => {
     };
 
     const changeYear = (offset) => {
-        setViewDate(new Date(viewDate.setFullYear(viewDate.getFullYear() + offset)));
+        const d = new Date(viewDate);
+        d.setFullYear(d.getFullYear() + offset);
+        setViewDate(d);
     };
 
     const handleFilterSelect = (category) => {
         setActiveFilter(category);
         setIsFilterOpen(false);
-        setFilteredEvents(category === 'All' ? events : events.filter(ev => ev.extendedProps.category === category));
+        if (category === 'All') {
+            setFilteredEvents(events);
+        } else {
+            setFilteredEvents(events.filter(ev => ev.extendedProps.category === category));
+        }
     };
 
     return (
-        <div className="flex h-screen bg-[#F8FAFC] overflow-hidden font-sans relative p-4 md:p-6">
-            <div className="flex flex-grow w-full h-full bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden relative">
+        <div className="flex h-screen bg-[#F8FAFC] overflow-hidden p-3 md:p-5 relative font-sans">
+            <div className="flex w-full h-full bg-white rounded-[24px] md:rounded-[32px] shadow-sm border border-slate-100 overflow-hidden relative">
                 
-                {/* Main Content */}
+                {/* Main Calendar Section */}
                 <div className="flex-grow flex flex-col p-4 md:p-8 min-w-0 h-full">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 shrink-0">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 shrink-0">
                         
-                        {/* Month/Year Picker Header - Ref image_bd537c.png */}
+                        {/* Month & Year Picker */}
                         <div className="relative" ref={datePickerRef}>
                             <button 
                                 onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
@@ -99,9 +115,9 @@ const CalendarPage = () => {
                             {isDatePickerOpen && (
                                 <div className="absolute left-0 mt-3 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 z-[110] animate-in fade-in slide-in-from-top-2">
                                     <div className="flex items-center justify-between mb-4 px-1">
-                                        <button onClick={() => changeYear(-1)} className="p-1.5 hover:bg-slate-100 rounded-lg"><LuChevronLeft /></button>
+                                        <button onClick={() => changeYear(-1)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><LuChevronLeft /></button>
                                         <span className="font-bold text-slate-700">{viewDate.getFullYear()}</span>
-                                        <button onClick={() => changeYear(1)} className="p-1.5 hover:bg-slate-100 rounded-lg"><LuChevronRight /></button>
+                                        <button onClick={() => changeYear(1)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><LuChevronRight /></button>
                                     </div>
                                     <div className="grid grid-cols-3 gap-2">
                                         {months.map((month, idx) => (
@@ -121,8 +137,10 @@ const CalendarPage = () => {
                                 </div>
                             )}
                         </div>
-                        
-                        <div className="flex items-center space-x-3 w-full sm:w-auto justify-between">
+
+                        {/* Controls: Nav + Filter */}
+                        <div className="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-end">
+                            {/* Prev/Next Buttons */}
                             <div className="flex bg-slate-50 rounded-xl p-1 border border-slate-100">
                                 <button onClick={() => calendarRef.current.getApi().prev()} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-600">
                                     <LuChevronLeft className="w-5 h-5" />
@@ -132,6 +150,7 @@ const CalendarPage = () => {
                                 </button>
                             </div>
 
+                            {/* Category Filter Dropdown */}
                             <div className="relative" ref={dropdownRef}>
                                 <button 
                                     onClick={() => setIsFilterOpen(!isFilterOpen)}
@@ -145,7 +164,7 @@ const CalendarPage = () => {
                                 </button>
 
                                 {isFilterOpen && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-[100]">
+                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-[100] animate-in fade-in zoom-in-95">
                                         {categories.map((cat) => (
                                             <button
                                                 key={cat}
@@ -162,7 +181,8 @@ const CalendarPage = () => {
                         </div>
                     </div>
 
-                    <div className="flex-grow min-h-0">
+                    {/* Calendar Harness */}
+                    <div className="flex-grow min-h-0 calendar-container">
                         <FullCalendar
                             ref={calendarRef}
                             plugins={[dayGridPlugin, interactionPlugin]}
@@ -172,39 +192,62 @@ const CalendarPage = () => {
                             headerToolbar={false}
                             datesSet={(arg) => setCurrentTitle(arg.view.title)}
                             eventClick={(info) => setSelectedEvent(info.event.extendedProps)}
-                            eventContent={(info) => (
-                                <div className="flex flex-col px-1.5 py-0.5 overflow-hidden">
-                                    <span className="font-bold text-[10px] md:text-[11px] truncate leading-tight">{info.event.title}</span>
-                                    <span className="opacity-70 text-[9px] hidden sm:block">{info.event.extendedProps.displayTime}</span>
-                                </div>
-                            )}
                         />
                     </div>
                 </div>
 
-                {/* Event Sidebar */}
+                {/* Event Detail Sidebar */}
                 <div className={`
-                    absolute inset-y-0 right-0 z-[120] w-full sm:w-[400px] bg-white border-l border-slate-100 flex flex-col transition-transform duration-500
+                    absolute inset-y-0 right-0 z-[120] w-full sm:w-[400px] lg:w-[380px] 
+                    bg-white border-l border-slate-100 flex flex-col transition-transform duration-500
                     ${selectedEvent ? 'translate-x-0' : 'translate-x-full'}
-                    lg:relative lg:translate-x-0 ${!selectedEvent && 'lg:hidden'}
-                    sm:rounded-l-[40px] shadow-2xl lg:shadow-none
+                    shadow-2xl lg:shadow-none
                 `}>
                     {selectedEvent && (
                         <div className="flex flex-col h-full overflow-hidden">
-                            <div className="relative h-64 shrink-0">
-                                <img src={selectedEvent.displayImage} className="w-full h-full object-cover" alt="" />
-                                <button onClick={() => setSelectedEvent(null)} className="absolute top-6 right-6 bg-black/30 backdrop-blur-md p-2.5 rounded-full text-white"><LuX className="w-5 h-5" /></button>
+                            <div className="relative h-64 shrink-0 m-5">
+                                <img src={selectedEvent.displayImage} className="w-full h-full object-cover rounded-[32px]" alt="" />
+                                <button 
+                                    onClick={() => setSelectedEvent(null)} 
+                                    className="absolute top-4 right-4 bg-black/40 backdrop-blur-md p-2 rounded-full text-white hover:bg-black/60 transition-all"
+                                >
+                                    <LuX className="w-5 h-5" />
+                                </button>
                             </div>
-                            <div className="p-8 flex-grow overflow-y-auto">
-                                <h3 className="text-2xl font-bold text-slate-900 mb-2">{selectedEvent.name}</h3>
-                                <span className="inline-block px-3 py-1 bg-pink-50 text-pink-500 rounded-lg text-[10px] font-bold uppercase mb-8">{selectedEvent.category}</span>
-                                <div className="space-y-4 mb-8 text-slate-600 text-sm">
-                                    <div className="flex items-center"><LuCalendar className="mr-4 text-slate-400" />{selectedEvent.date} — {selectedEvent.displayTime}</div>
-                                    <div className="flex items-center"><LuMapPin className="mr-4 text-slate-400" />{selectedEvent.displayLocation}</div>
+
+                            <div className="px-8 flex-grow overflow-y-auto custom-scrollbar pb-8">
+                                <div className="mb-6">
+                                    <h3 className="text-2xl font-bold text-slate-900 leading-tight mb-2">{selectedEvent.name}</h3>
+                                    <span className="inline-block px-3 py-1 bg-pink-50 text-pink-500 rounded-lg text-[10px] font-bold uppercase tracking-widest">
+                                        {selectedEvent.category}
+                                    </span>
                                 </div>
-                                <div className="bg-slate-50 rounded-2xl p-6 space-y-4 border border-slate-100">
-                                    <div className="flex justify-between"><span className="text-slate-500">Price</span><span className="font-bold">${selectedEvent.price}</span></div>
-                                    <div className="flex justify-between"><span className="text-slate-500">Capacity</span><span className="font-bold">{selectedEvent.capacity} Pax</span></div>
+
+                                <div className="space-y-5 mb-8">
+                                    <div className="flex items-center text-sm text-slate-600">
+                                        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mr-4">
+                                            <LuCalendar className="text-slate-400 w-5 h-5" />
+                                        </div>
+                                        <span className="font-semibold text-slate-700">{selectedEvent.date} — {selectedEvent.displayTime}</span>
+                                    </div>
+                                    <div className="flex items-center text-sm text-slate-600">
+                                        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mr-4">
+                                            <LuMapPin className="text-slate-400 w-5 h-5" />
+                                        </div>
+                                        <span className="font-semibold text-slate-700">{selectedEvent.displayLocation}</span>
+                                    </div>
+                                </div>
+
+                                <div className="bg-[#F8FAFC] rounded-[28px] p-6 border border-slate-100 mt-auto">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Starting from</span>
+                                            <div className="text-2xl font-black text-slate-900 mt-1">₹{selectedEvent.price?.toLocaleString() || '1,200'}</div>
+                                        </div>
+                                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                            <LuUsers className="w-6 h-6" />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -213,12 +256,26 @@ const CalendarPage = () => {
             </div>
 
             <style>{`
-                .fc { border: none !important; }
                 .fc-theme-standard td, .fc-theme-standard th { border: 1px solid #F1F5F9 !important; }
-                .fc-col-header-cell { padding-bottom: 15px !important; color: #94A3B8 !important; font-size: 11px !important; text-transform: uppercase; }
-                .fc-daygrid-day-number { font-size: 14px; font-weight: 500; color: #64748B; padding: 10px !important; }
-                .fc-day-today .fc-daygrid-day-number { color: white !important; background: #5D5FEF; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin: 6px !important; }
-                .fc-event { border-radius: 6px !important; border: none !important; margin: 2px 4px !important; }
+                .fc-scrollgrid { border: none !important; }
+                .fc-col-header-cell { padding: 12px 0 !important; color: #94A3B8 !important; font-size: 11px !important; text-transform: uppercase; letter-spacing: 0.05em; }
+                .fc-day-today { background: transparent !important; }
+                .fc-day-today .fc-daygrid-day-number { 
+                    background: #5D5FEF; 
+                    color: white !important; 
+                    border-radius: 10px; 
+                    width: 32px; 
+                    height: 32px; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    margin: 6px !important; 
+                }
+                .fc-daygrid-day-number { font-size: 14px; font-weight: 600; color: #64748B; padding: 10px !important; text-decoration: none !important; }
+                .fc-event { border-radius: 8px !important; border: none !important; margin: 2px 5px !important; padding: 2px 4px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+                .calendar-container .fc-view-harness { height: 100% !important; }
+                .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
             `}</style>
         </div>
     );

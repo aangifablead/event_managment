@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const authRoutes = require('./routes/authRoutes');
 const staffRoutes=require('./routes/staffRoute')
 const eventRoutes = require('./routes/eventRoutes')
-
+const bookingRoute=require('./routes/bookingRoutes')
 const app = express();
 app.use(express.json());
 app.use(cors());
@@ -18,4 +18,5 @@ mongoose.connect('mongodb://localhost:27017/ventixe')
 app.use('/api/auth', authRoutes);
 app.use('/api/staff',staffRoutes)
 app.use('/api/events', eventRoutes);
+app.use('/api/bookings',bookingRoute)
 app.listen(5000, () => console.log("Server running on port 5000"));

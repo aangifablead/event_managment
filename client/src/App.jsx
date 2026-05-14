@@ -5,7 +5,8 @@ import UserManagement from './pages/userPage';
 import EventPage from './pages/eventPage';
 import EventDetails from './pages/eventDetail';
 import CalendarPage from './pages/CalendarPage';
-// import Bookings from './pages/Bookings';
+import BookingsDashboard from './pages/BookingsPage';
+
 function App() {
   return (
     <Router>
@@ -16,7 +17,7 @@ function App() {
         <Route path="/events" element={<Layout><EventPage/></Layout>} />
         <Route path="/events/:id" element={<Layout><EventDetails/></Layout>} />
         <Route path="/calendar" element={<Layout><CalendarPage /></Layout>} />
-        <Route path="/bookings" element={<Layout><div>Bookings Content</div></Layout>} />
+        <Route path="/bookings" element={<Layout><BookingsDashboard/></Layout>} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </Router>
