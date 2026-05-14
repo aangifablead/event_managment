@@ -60,7 +60,6 @@ const CalendarPage = () => {
         fetchEvents();
     }, [execute]);
 
-    // Handle Clicks Outside for Dropdowns
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsFilterOpen(false);
@@ -69,6 +68,13 @@ const CalendarPage = () => {
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    // NEW: Progress calculation helper
+    const calculateProgress = (booked, capacity) => {
+        if (!capacity) return 0;
+        const percentage = (booked / capacity) * 100;
+        return Math.min(percentage, 100); // Cap at 100%
+    };
 
     const handleDateSelect = (monthIndex) => {
         const newDate = new Date(viewDate.getFullYear(), monthIndex, 1);
@@ -96,11 +102,9 @@ const CalendarPage = () => {
         <div className="flex h-screen bg-[#F8FAFC] overflow-hidden p-3 md:p-5 relative font-sans">
             <div className="flex w-full h-full bg-white rounded-[24px] md:rounded-[32px] shadow-sm border border-slate-100 overflow-hidden relative">
                 
-                {/* Main Calendar Section */}
-                <div className="flex-grow flex flex-col p-4 md:p-8 min-w-0 h-full">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 shrink-0">
-                        
-                        {/* Month & Year Picker */}
+                {/* CALENDAR SECTION */}
+                <div className="flex-grow flex flex-col p-4 md:p-6 min-w-0 h-full">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 shrink-0">
                         <div className="relative" ref={datePickerRef}>
                             <button 
                                 onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
@@ -138,9 +142,7 @@ const CalendarPage = () => {
                             )}
                         </div>
 
-                        {/* Controls: Nav + Filter */}
                         <div className="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-end">
-                            {/* Prev/Next Buttons */}
                             <div className="flex bg-slate-50 rounded-xl p-1 border border-slate-100">
                                 <button onClick={() => calendarRef.current.getApi().prev()} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-600">
                                     <LuChevronLeft className="w-5 h-5" />
@@ -150,7 +152,6 @@ const CalendarPage = () => {
                                 </button>
                             </div>
 
-                            {/* Category Filter Dropdown */}
                             <div className="relative" ref={dropdownRef}>
                                 <button 
                                     onClick={() => setIsFilterOpen(!isFilterOpen)}
@@ -181,7 +182,6 @@ const CalendarPage = () => {
                         </div>
                     </div>
 
-                    {/* Calendar Harness */}
                     <div className="flex-grow min-h-0 calendar-container">
                         <FullCalendar
                             ref={calendarRef}
@@ -196,56 +196,83 @@ const CalendarPage = () => {
                     </div>
                 </div>
 
-                {/* Event Detail Sidebar */}
+                {/* SIDEBAR DETAIL VIEW */}
                 <div className={`
-                    absolute inset-y-0 right-0 z-[120] w-full sm:w-[400px] lg:w-[380px] 
+                    absolute inset-y-0 right-0 z-[120] w-full sm:w-[360px] lg:w-[360px] 
                     bg-white border-l border-slate-100 flex flex-col transition-transform duration-500
+                    h-full max-h-full
                     ${selectedEvent ? 'translate-x-0' : 'translate-x-full'}
                     shadow-2xl lg:shadow-none
                 `}>
                     {selectedEvent && (
                         <div className="flex flex-col h-full overflow-hidden">
-                            <div className="relative h-64 shrink-0 m-5">
-                                <img src={selectedEvent.displayImage} className="w-full h-full object-cover rounded-[32px]" alt="" />
+                            <div className="relative shrink-0 m-4 mb-2">
+                                <div className="aspect-video w-full overflow-hidden rounded-[24px]">
+                                    <img 
+                                        src={selectedEvent.displayImage} 
+                                        className="w-full h-full object-cover" 
+                                        alt="" 
+                                    />
+                                </div>
                                 <button 
                                     onClick={() => setSelectedEvent(null)} 
-                                    className="absolute top-4 right-4 bg-black/40 backdrop-blur-md p-2 rounded-full text-white hover:bg-black/60 transition-all"
+                                    className="absolute top-3 right-3 bg-black/40 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-black/60 transition-all"
                                 >
-                                    <LuX className="w-5 h-5" />
+                                    <LuX className="w-4 h-4" />
                                 </button>
                             </div>
 
-                            <div className="px-8 flex-grow overflow-y-auto custom-scrollbar pb-8">
-                                <div className="mb-6">
-                                    <h3 className="text-2xl font-bold text-slate-900 leading-tight mb-2">{selectedEvent.name}</h3>
-                                    <span className="inline-block px-3 py-1 bg-pink-50 text-pink-500 rounded-lg text-[10px] font-bold uppercase tracking-widest">
+                            <div className="px-6 py-2 flex-grow overflow-hidden flex flex-col">
+                                <div className="mb-4">
+                                    <h3 className="text-xl font-bold text-slate-900 leading-tight mb-1">
+                                        {selectedEvent.name}
+                                    </h3>
+                                    <span className="inline-block px-2 py-0.5 bg-pink-50 text-pink-500 rounded-md text-[10px] font-bold uppercase tracking-widest">
                                         {selectedEvent.category}
                                     </span>
                                 </div>
 
-                                <div className="space-y-5 mb-8">
+                                <div className="space-y-3 mb-5">
                                     <div className="flex items-center text-sm text-slate-600">
-                                        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mr-4">
-                                            <LuCalendar className="text-slate-400 w-5 h-5" />
+                                        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center mr-3 shrink-0">
+                                            <LuCalendar className="text-slate-400 w-4 h-4" />
                                         </div>
-                                        <span className="font-semibold text-slate-700">{selectedEvent.date} — {selectedEvent.displayTime}</span>
+                                        <span className="font-medium text-slate-700 truncate">{selectedEvent.date} — {selectedEvent.displayTime}</span>
                                     </div>
                                     <div className="flex items-center text-sm text-slate-600">
-                                        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mr-4">
-                                            <LuMapPin className="text-slate-400 w-5 h-5" />
+                                        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center mr-3 shrink-0">
+                                            <LuMapPin className="text-slate-400 w-4 h-4" />
                                         </div>
-                                        <span className="font-semibold text-slate-700">{selectedEvent.displayLocation}</span>
+                                        <span className="font-medium text-slate-700 truncate">{selectedEvent.displayLocation}</span>
                                     </div>
                                 </div>
 
-                                <div className="bg-[#F8FAFC] rounded-[28px] p-6 border border-slate-100 mt-auto">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Starting from</span>
-                                            <div className="text-2xl font-black text-slate-900 mt-1">₹{selectedEvent.price?.toLocaleString() || '1,200'}</div>
-                                        </div>
-                                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                                            <LuUsers className="w-6 h-6" />
+                                {/* ADDED: PROGRESS BAR SECTION */}
+                                <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <div className="flex justify-between items-end mb-2">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Registration</span>
+                                        <span className="text-xs font-bold text-indigo-600">
+                                            {selectedEvent.bookedCount || 0} / {selectedEvent.capacity || 0}
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                        <div 
+                                            className="bg-indigo-500 h-full rounded-full transition-all duration-1000"
+                                            style={{ width: `${calculateProgress(selectedEvent.bookedCount, selectedEvent.capacity)}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-auto pt-2 pb-6">
+                                    <div className="bg-[#F8FAFC] rounded-[24px] p-4 border border-slate-100">
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Starting from</span>
+                                                <div className="text-xl font-black text-slate-900">₹{selectedEvent.price?.toLocaleString() || '1,200'}</div>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-indigo-600 border border-slate-50">
+                                                <LuUsers className="w-5 h-5" />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -256,6 +283,10 @@ const CalendarPage = () => {
             </div>
 
             <style>{`
+                .fc .fc-scroller::-webkit-scrollbar { display: none !important; }
+                .fc .fc-scroller { -ms-overflow-style: none !important; scrollbar-width: none !important; }
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
                 .fc-theme-standard td, .fc-theme-standard th { border: 1px solid #F1F5F9 !important; }
                 .fc-scrollgrid { border: none !important; }
                 .fc-col-header-cell { padding: 12px 0 !important; color: #94A3B8 !important; font-size: 11px !important; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -274,8 +305,6 @@ const CalendarPage = () => {
                 .fc-daygrid-day-number { font-size: 14px; font-weight: 600; color: #64748B; padding: 10px !important; text-decoration: none !important; }
                 .fc-event { border-radius: 8px !important; border: none !important; margin: 2px 5px !important; padding: 2px 4px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
                 .calendar-container .fc-view-harness { height: 100% !important; }
-                .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
             `}</style>
         </div>
     );
