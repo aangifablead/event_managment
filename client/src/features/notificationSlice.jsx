@@ -7,23 +7,18 @@ const notificationSlice = createSlice({
     },
     reducers: {
         addNotification: (state, action) => {
-            state.item.unshift({
-                ...action.payload,
-                id: Date.now(),
-                isRead: false
-            })
-            state.unreadCount += 1
+            // The error happens here if state.items is undefined
+            if (!state.items) {
+                state.items = [];
+            }
+            state.items.unshift(action.payload); // Now it won't crash
+            state.unreadCount += 1;
         },
         markAllAsRead: (state) => {
-            state.items = state.items.map(item => ({ ...item, isRead: true }));
-            state.unreadCount = 0
+            state.unreadCount = 0;
         },
-        clearNotifications: (state) => {
-            state.item = [];
-            state.unreadCount = 0
-        }
     }
 })
 
-export const { clearNotifications, addNotification, markAllAsRead } = notificationSlice.actions
+export const { addNotification, markAllAsRead } = notificationSlice.actions
 export default notificationSlice.reducer

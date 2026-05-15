@@ -59,14 +59,25 @@ exports.updateStaff = async (req, res) => {
         const updated = await Staff.findOneAndUpdate(
             { _id: req.params.id, adminId: req.user.id },
             req.body,
-            { new: true }
-        )
-        res.json(updated)
-    } catch (e) {
-        res.status(400).json({ message: "Updated failed" })
-    }
-}
+            { returnDocument: 'after' } // Changed from { new: true }
+        );
+        if (req.io && req.body.status === 'CONFIRMED') {
+            // This ensures the ADMIN (you) gets the notification instantly
+            req.io.to('admin-room').emit('new-notification', {
+                message: `User ${updated.name} has been successfully CONFIRMED.`,
+                type: 'SUCCESS'
+            });
 
+            req.io.to(updated._id.toString()).emit('new-notification', {
+                message: "Your account is CONFIRMED!",
+                type: 'SUCCESS'
+            });
+        }
+        res.json(updated);
+    } catch (e) {
+        res.status(400).json({ message: "Update failed" });
+    }
+};
 //DELETE
 exports.deleteStaff = async (req, res) => {
     try {

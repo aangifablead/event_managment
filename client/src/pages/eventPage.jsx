@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { selectFilteredEvents, setFilters, setCurrentPage, setEvents, addEvent } from "../features/eventSlice";
+import { selectFilteredEvents, setFilters, setCurrentPage, setEvents, addEvent, updateEvent } from "../features/eventSlice";
 import EventCard from "../components/EventCard";
 import AddEventModal from "../components/EventModal";
 import { Search, ChevronDown, CalendarDays, Plus } from "lucide-react";
@@ -63,14 +63,26 @@ const EventPage = () => {
         };
     }, [filteredEvents, currentPage, itemsPerPage]);
 
-    const handleSuccess = (apiResponse) => {
-        const newEvent = apiResponse?.event; // Grab the object from the { message, event } wrapper
-        if (newEvent) {
-            // This hits the unshift() logic in the slice and adds it to UI immediately
-            dispatch(addEvent(newEvent));
+// Inside EventPage.jsx
+const handleSuccess = (apiResponse) => {
+    // 1. Identify the data. 
+    // Your CREATE returns { event: newEvent }
+    // Your UPDATE returns the object directly (based on your controller)
+    const eventData = apiResponse?.event || apiResponse; 
+
+    if (eventData) {
+        if (selectedEvent) {
+            // SCENARIO: We were editing. Update the specific item in Redux.
+            dispatch(updateEvent(eventData));
+        } else {
+            // SCENARIO: We were creating. Add new item to the top.
+            dispatch(addEvent(eventData));
         }
-        setIsModalOpen(false);
-    };
+    }
+    
+    setIsModalOpen(false);
+    setSelectedEvent(null); // Reset selection so next click isn't treated as an edit
+};
 
     const categories = ["All Categories", "Fashion", "Music", "Tech"];
 
