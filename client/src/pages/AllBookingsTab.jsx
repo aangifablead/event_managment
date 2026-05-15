@@ -21,12 +21,6 @@ const AllBookingsTab = () => {
     }
   };
 
-  // --- LOGIC START: STATUS HANDLERS ---
-
-  /**
-   * Booking Status Logic:
-   * If payment is Cash, status is Pending. Otherwise, it is Confirmed.
-   */
   const getBookingStatus = (paymentMode) => {
     if (paymentMode === "Cash") {
       return { label: "Pending", style: "bg-amber-100 text-amber-700 border-amber-200" };
@@ -34,10 +28,6 @@ const AllBookingsTab = () => {
     return { label: "Confirmed", style: "bg-emerald-100 text-emerald-700 border-emerald-200" };
   };
 
-  /**
-   * Event Status Logic:
-   * Based on the capacity and bookedCount from the event object.
-   */
   const getEventStatus = (event) => {
     if (!event) return { label: "N/A", style: "bg-slate-100 text-slate-600" };
     

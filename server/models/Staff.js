@@ -6,7 +6,7 @@ const StaffSchema = new mongoose.Schema({
     name: { type: String, require: true, trim: true },
     email: { type: String, require: true, trim: true ,unique: true},
     role: { type: String, default: 'User' },
-    status: { type: String, default: 'CONFIRMED' },
+    status: { type: String, default: 'PENDING' },
     adminId: {                                      //to sync data with that particular user
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
