@@ -15,12 +15,42 @@ const AllBookingsTab = () => {
     try {
       const response = await execute("/bookings");
       const bookingsData = response?.data?.bookings || response?.data || [];
-
       setBookings(Array.isArray(bookingsData) ? bookingsData : []);
     } catch (err) {
       console.error("Failed to fetch bookings:", err);
     }
   };
+
+  // --- LOGIC START: STATUS HANDLERS ---
+
+  /**
+   * Booking Status Logic:
+   * If payment is Cash, status is Pending. Otherwise, it is Confirmed.
+   */
+  const getBookingStatus = (paymentMode) => {
+    if (paymentMode === "Cash") {
+      return { label: "Pending", style: "bg-amber-100 text-amber-700 border-amber-200" };
+    }
+    return { label: "Confirmed", style: "bg-emerald-100 text-emerald-700 border-emerald-200" };
+  };
+
+  /**
+   * Event Status Logic:
+   * Based on the capacity and bookedCount from the event object.
+   */
+  const getEventStatus = (event) => {
+    if (!event) return { label: "N/A", style: "bg-slate-100 text-slate-600" };
+    
+    const { bookedCount, capacity } = event;
+    const ratio = bookedCount / capacity;
+
+    if (bookedCount >= capacity) return { label: "Sold Out", style: "bg-slate-100 text-slate-500" };
+    if (ratio >= 0.9) return { label: "Almost Full", style: "bg-red-100 text-red-700" };
+    if (ratio >= 0.5) return { label: "Filling Fast", style: "bg-orange-100 text-orange-700" };
+    return { label: "Available", style: "bg-green-100 text-green-700" };
+  };
+
+  // --- LOGIC END ---
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking) => {
@@ -32,27 +62,6 @@ const AllBookingsTab = () => {
       );
     });
   }, [bookings, search]);
-
-  const getCapacityStatus = (event) => {
-    if (!event) return "N/A";
-    const ratio = event.bookedCount / event.capacity;
-    if (ratio >= 0.9) return "Almost Full";
-    if (ratio >= 0.5) return "Filling Fast";
-    return "Available";
-  };
-
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case "Available":
-        return "bg-green-100 text-green-700";
-      case "Filling Fast":
-        return "bg-orange-100 text-orange-700";
-      case "Almost Full":
-        return "bg-red-100 text-red-700";
-      default:
-        return "bg-slate-100 text-slate-600";
-    }
-  };
 
   if (loading) {
     return (
@@ -107,7 +116,8 @@ const AllBookingsTab = () => {
         <div className="md:hidden space-y-4">
           {filteredBookings.length > 0 ? (
             filteredBookings.map((row) => {
-              const status = getCapacityStatus(row.event);
+              const bStatus = getBookingStatus(row.paymentMode);
+              const eStatus = getEventStatus(row.event);
               return (
                 <div key={row._id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
@@ -130,8 +140,9 @@ const AllBookingsTab = () => {
                       <p className="text-lg font-bold text-indigo-600">
                         ₹{row.totalAmount?.toLocaleString()}
                       </p>
-                      <span className={`inline-block mt-2 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${getStatusStyle(status)}`}>
-                        {status}
+                      {/* Booking Status Badge (Pending/Confirmed) */}
+                      <span className={`inline-block mt-2 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide border ${bStatus.style}`}>
+                        {bStatus.label}
                       </span>
                     </div>
                   </div>
@@ -144,7 +155,13 @@ const AllBookingsTab = () => {
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-xs font-medium text-slate-400 uppercase">Event</span>
-                        <span className="text-sm font-semibold text-slate-700 text-right">{row.event?.name || "---"}</span>
+                        <div className="text-right">
+                            <span className="text-sm font-semibold text-slate-700 block">{row.event?.name || "---"}</span>
+                            {/* Event Capacity Status Badge */}
+                            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase ${eStatus.style}`}>
+                                {eStatus.label}
+                            </span>
+                        </div>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-xs font-medium text-slate-400 uppercase">Tickets</span>
@@ -184,7 +201,7 @@ const AllBookingsTab = () => {
             <table className="w-full min-w-[1050px]">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {["Booking ID", "Customer", "Event", "Tickets", "Amount", "Payment", "Status", "Booked On"].map((header) => (
+                  {["Booking ID", "Customer", "Event", "Tickets", "Amount", "Payment", "Booking Status", "Event Status"].map((header) => (
                     <th key={header} className="px-6 lg:px-8 py-4 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">
                       {header}
                     </th>
@@ -194,7 +211,8 @@ const AllBookingsTab = () => {
               <tbody>
                 {filteredBookings.length > 0 ? (
                   filteredBookings.map((row, index) => {
-                    const status = getCapacityStatus(row.event);
+                    const bStatus = getBookingStatus(row.paymentMode);
+                    const eStatus = getEventStatus(row.event);
                     return (
                       <tr key={row._id} className={`border-b border-slate-100 hover:bg-slate-50 transition-all ${index % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
                         <td className="px-6 lg:px-8 py-5 whitespace-nowrap">
@@ -221,19 +239,17 @@ const AllBookingsTab = () => {
                             {row.paymentMode}
                           </div>
                         </td>
+                        {/* Booking Status Column (Payment Driven) */}
                         <td className="px-6 lg:px-8 py-5">
-                          <span className={`inline-flex px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap ${getStatusStyle(status)}`}>
-                            {status}
+                          <span className={`inline-flex px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide border whitespace-nowrap ${bStatus.style}`}>
+                            {bStatus.label}
                           </span>
                         </td>
-                        <td className="px-6 lg:px-8 py-5 whitespace-nowrap">
-                          <p className="text-xs font-semibold text-slate-500 uppercase">
-                            {new Date(row.createdAt).toLocaleDateString("en-IN", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          </p>
+                        {/* Event Status Column (Capacity Driven) */}
+                        <td className="px-6 lg:px-8 py-5">
+                          <span className={`inline-flex px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap ${eStatus.style}`}>
+                            {eStatus.label}
+                          </span>
                         </td>
                       </tr>
                     );

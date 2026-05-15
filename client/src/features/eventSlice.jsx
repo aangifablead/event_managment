@@ -1,20 +1,8 @@
 import { createSlice, createSelector } from '@reduxjs/toolkit';
 
-// Helper to load data from localStorage (Keep as fallback)
-const loadEvents = () => {
-  try {
-    const saved = localStorage.getItem('persisted_events');
-    return saved ? JSON.parse(saved) : [
-      { id: 1, name: 'Adventure Gear Show', price: 40, category: 'Fashion', image: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b', progress: 65, date: "June 5, 2026 — 8:00 PM" },
-      { id: 2, name: 'Symphony Under Stars', price: 50, category: 'Music', image: 'https://images.unsplash.com/photo-1514525253361-bee04856a782', progress: 65, date: "June 5, 2026 — 8:00 PM" },
-    ];
-  } catch (err) {
-    return [];
-  }
-};
-
 const initialState = {
-  items: loadEvents(),
+  // Renamed 'items' to 'events' to match the selector in your Page component
+  events: [], 
   filters: { search: '', category: 'All Categories' },
   pagination: { currentPage: 1, itemsPerPage: 8 }
 };
@@ -23,47 +11,37 @@ const eventSlice = createSlice({
   name: 'events',
   initialState,
   reducers: {
-    // ADD THIS REDUCER: To set events from API
+    // 1. SET ALL: Used when fetching from the server
     setEvents: (state, action) => {
-      state.items = action.payload;
-      // Optional: keep localStorage in sync
-      localStorage.setItem('persisted_events', JSON.stringify(state.items));
+      state.events = action.payload;
     },
     
+    // 2. ADD ONE: Specifically for the handleSuccess instant update
     addEvent: (state, action) => {
-      // If action.payload already comes formatted from API, just push it
-      const eventToAdd = action.payload.id ? action.payload : {
-        id: Date.now(),
-        name: action.payload.title,
-        price: parseFloat(String(action.payload.price).replace(/[$,]/g, '')),
-        category: action.payload.category,
-        image: action.payload.coverImage ? (typeof action.payload.coverImage === 'string' ? action.payload.coverImage : URL.createObjectURL(action.payload.coverImage)) : '/api/placeholder/400/320',
-        location: `${action.payload.location}, ${action.payload.city}`,
-        progress: 0,
-        date: `${action.payload.date} — ${action.payload.time}`,
-      };
-
-      state.items.unshift(eventToAdd);
-      localStorage.setItem('persisted_events', JSON.stringify(state.items));
+      // We unshift (add to start) because we want newest first
+      // We don't need to reformat if the API already sends the correct object
+      state.events.unshift(action.payload);
     },
 
+    // 3. DELETE: Support both 'id' and '_id' from MongoDB
     deleteEvent: (state, action) => {
-      state.items = state.items.filter(event => (event.id || event._id) !== action.payload);
-      localStorage.setItem('persisted_events', JSON.stringify(state.items));
+      state.events = state.events.filter(event => 
+        (event.id || event._id) !== action.payload
+      );
     },
 
+    // 4. UPDATE: Find by ID and merge new data
     updateEvent: (state, action) => {
       const id = action.payload.id || action.payload._id;
-      const index = state.items.findIndex(event => (event.id || event._id) === id);
+      const index = state.events.findIndex(event => (event.id || event._id) === id);
       if (index !== -1) {
-        state.items[index] = { ...state.items[index], ...action.payload };
-        localStorage.setItem('persisted_events', JSON.stringify(state.items));
+        state.events[index] = { ...state.events[index], ...action.payload };
       }
     },
 
     setFilters: (state, action) => {
       state.filters = { ...state.filters, ...action.payload };
-      state.pagination.currentPage = 1;
+      state.pagination.currentPage = 1; // Reset to page 1 on filter change
     },
 
     setCurrentPage: (state, action) => {
@@ -72,23 +50,26 @@ const eventSlice = createSlice({
   }
 });
 
-const selectAllItems = state => state.events.items;
+// SELECTORS
+const selectRawEvents = state => state.events.events;
 const selectFilters = state => state.events.filters;
 
 export const selectFilteredEvents = createSelector(
-  [selectAllItems, selectFilters],
-  (items, filters) => {
-    return items.filter(event => {
-      // Handle both API 'name' and local 'title' variations
-      const name = event.name || event.title || "";
-      const matchesSearch = name.toLowerCase().includes(filters.search.toLowerCase());
+  [selectRawEvents, selectFilters],
+  (events, filters) => {
+    if (!events) return [];
+    
+    return events.filter(event => {
+      // Use the 'name' field from your API
+      const eventName = event.name || "";
+      const matchesSearch = eventName.toLowerCase().includes(filters.search.toLowerCase());
       const matchesCat = filters.category === 'All Categories' || event.category === filters.category;
+      
       return matchesSearch && matchesCat;
     });
   }
 );
 
-// Added setEvents to the exports
 export const { 
     setEvents, 
     addEvent, 

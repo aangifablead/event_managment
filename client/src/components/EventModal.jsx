@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { addEvent, updateEvent, deleteEvent } from '../features/eventSlice';
 import useApi from '../hooks/useApi';
+import { Trash2, AlertCircle } from 'lucide-react';
 
-const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
+const AddEventModal = ({ isOpen, onClose, editingEvent, onSuccess }) => {
     const dispatch = useDispatch();
     const { execute } = useApi();
     const today = new Date().toISOString().split('T')[0];
@@ -16,8 +17,28 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
 
     const [formData, setFormData] = useState(initialFormState);
     const [errors, setErrors] = useState({});
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-    // Helper: Convert File to Base64 String
+    useEffect(() => {
+        if (editingEvent && isOpen) {
+            setFormData({
+                ...initialFormState,
+                ...editingEvent,
+                title: editingEvent.name || editingEvent.title,
+                description: editingEvent.description || '',
+                venue: editingEvent.venue,
+                gallery: editingEvent.gallery || [],
+                coverImage: editingEvent.image || editingEvent.coverImage
+            });
+        } else if (!editingEvent && isOpen) {
+            setFormData(initialFormState);
+        }
+        setErrors({});
+        setShowDeleteConfirm(false);
+    }, [editingEvent, isOpen]);
+
+    if (!isOpen) return null;
+
     const convertToBase64 = (file) => {
         return new Promise((resolve, reject) => {
             const fileReader = new FileReader();
@@ -27,27 +48,17 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
         });
     };
 
-    useEffect(() => {
-        if (editingEvent && isOpen) {
-            setFormData({
-                ...initialFormState,
-                ...editingEvent,
-                title: editingEvent.title || editingEvent.name,
-                venue: editingEvent.venue || editingEvent.venue,
-                gallery: editingEvent.gallery || [],
-                coverImage: editingEvent.image || editingEvent.coverImage
-            });
-        } else if (!editingEvent && isOpen) {
-            setFormData(initialFormState);
-        }
-        setErrors({});
-    }, [editingEvent, isOpen]);
-
-    if (!isOpen) return null;
-
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        
+        // Strict Numeric Validation for Price and Capacity
+        if (name === 'price' || name === 'capacity') {
+            const val = value.replace(/[^0-9]/g, ''); // Removes any non-digit character
+            setFormData(prev => ({ ...prev, [name]: val }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
+
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: false }));
     };
 
@@ -63,8 +74,6 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        // 1. Validation
         const requiredFields = ['title', 'price', 'capacity', 'description', 'time', 'date', 'venue', 'city', 'state'];
         if (!editingEvent) requiredFields.push('coverImage');
 
@@ -79,7 +88,6 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
         }
 
         try {
-            // 2. Process Media: Convert new Files to Base64 strings
             let mainImage = formData.coverImage;
             if (formData.coverImage instanceof File) {
                 mainImage = await convertToBase64(formData.coverImage);
@@ -88,11 +96,10 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
             const galleryImages = await Promise.all(
                 formData.gallery.map(async (item) => {
                     if (item instanceof File) return await convertToBase64(item);
-                    return item; // Keep existing URL strings
+                    return item;
                 })
             );
 
-            // 3. Construct JSON Payload (Mapping to Backend Names)
             const payload = {
                 name: formData.title,
                 venue: formData.venue,
@@ -104,39 +111,29 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
                 date: formData.date,
                 city: formData.city,
                 state: formData.state,
-                image: mainImage,           // Field: image (string)
-                gallery: galleryImages      // Field: gallery (array of strings)
+                image: mainImage,
+                gallery: galleryImages
             };
 
-            // 4. API Request
-            if (editingEvent) {
-                const id = editingEvent.id || editingEvent._id;
-                const { data } = await execute(`/events/${id}`, 'PUT', payload);
-                if (data) {
-                    dispatch(updateEvent(data));
-                    onClose();
-                }
-            } else {
-                const { data } = await execute('/events', 'POST', payload);
-                if (data) {
-                    dispatch(addEvent(data));
-                    onClose();
-                }
+            const url = editingEvent ? `/events/${editingEvent.id || editingEvent._id}` : '/events';
+            const method = editingEvent ? 'PUT' : 'POST';
+            const { data } = await execute(url, method, payload);
+
+            if (data) {
+                onSuccess(data);
+                onClose();
             }
         } catch (err) {
             console.error("Error submitting form:", err);
-            alert("Failed to process images. Ensure files aren't too large.");
         }
     };
 
-    const handleDelete = async () => {
-        if (window.confirm("Are you sure you want to delete this event?")) {
-            const id = editingEvent.id || editingEvent._id;
-            const { error } = await execute(`/events/${id}`, 'DELETE');
-            if (!error) {
-                dispatch(deleteEvent(id));
-                onClose();
-            }
+    const confirmDelete = async () => {
+        const id = editingEvent.id || editingEvent._id;
+        const { error } = await execute(`/events/${id}`, 'DELETE');
+        if (!error) {
+            dispatch(deleteEvent(id));
+            onClose();
         }
     };
 
@@ -144,7 +141,25 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            
+            {/* COMPACT DELETE POP-UP */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-[2px]">
+                    <div className="bg-white w-full max-w-[320px] rounded-2xl shadow-2xl p-6 text-center animate-in zoom-in duration-200">
+                        <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertCircle size={24} />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900">Delete Event?</h3>
+                        <p className="text-sm text-slate-500 mt-2">Are you sure you want to remove this event permanently?</p>
+                        <div className="mt-6 flex gap-3">
+                            <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">No, Keep it</button>
+                            <button onClick={confirmDelete} className="flex-1 py-2.5 text-sm font-bold text-white bg-rose-500 rounded-xl hover:bg-rose-600 shadow-lg shadow-rose-200 transition-colors">Yes, Delete</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] relative overflow-hidden">
                 <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-start">
                     <div>
                         <h2 className="text-[22px] font-bold text-slate-900">
@@ -156,7 +171,6 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
                 </div>
 
                 <form className="p-8 overflow-y-auto space-y-7 no-scrollbar" onSubmit={handleSubmit}>
-                    {/* Media Upload Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -182,7 +196,6 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
                         </div>
                     </div>
 
-                    {/* Basic Info */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Event Title {errors.title && <ErrorMsg />}</label>
@@ -191,16 +204,11 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
                         <div className="space-y-2">
                             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Category</label>
                             <select name="category" value={formData.category} onChange={handleChange} className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm bg-white outline-none">
-                                <option>Music</option>
-                                <option>Fashion</option>
-                                <option>Tech</option>
-                                <option>Business</option>
-                                <option>Entertainment</option>
+                                <option>Music</option><option>Fashion</option><option>Tech</option><option>Business</option><option>Entertainment</option>
                             </select>
                         </div>
                     </div>
 
-                    {/* Location Info */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Venue {errors.venue && <ErrorMsg />}</label>
@@ -216,7 +224,6 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
                         </div>
                     </div>
 
-                    {/* Time and Price */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="space-y-2">
                             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Date {errors.date && <ErrorMsg />}</label>
@@ -228,31 +235,25 @@ const AddEventModal = ({ isOpen, onClose, editingEvent }) => {
                         </div>
                         <div className="space-y-2">
                             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Price (₹) {errors.price && <ErrorMsg />}</label>
-                            <input name="price" value={formData.price} onChange={handleChange} type="number" className="w-full px-3 py-3 border border-slate-200 rounded-xl text-[13px] outline-none" />
+                            <input name="price" value={formData.price} onChange={handleChange} type="text" inputMode="numeric" className="w-full px-3 py-3 border border-slate-200 rounded-xl text-[13px] outline-none" />
                         </div>
                         <div className="space-y-2">
                             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Capacity {errors.capacity && <ErrorMsg />}</label>
-                            <input name="capacity" value={formData.capacity} onChange={handleChange} type="number" className="w-full px-3 py-3 border border-slate-200 rounded-xl text-[13px] outline-none" />
+                            <input name="capacity" value={formData.capacity} onChange={handleChange} type="text" inputMode="numeric" className="w-full px-3 py-3 border border-slate-200 rounded-xl text-[13px] outline-none" />
                         </div>
                     </div>
 
-                    {/* Description */}
                     <div className="space-y-2">
                         <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">About {errors.description && <ErrorMsg />}</label>
                         <textarea name="description" value={formData.description} onChange={handleChange} rows="3" className={`w-full px-4 py-3 border rounded-xl text-sm outline-none resize-none ${errors.description ? 'border-rose-500' : 'border-slate-200 focus:border-[#FF3B8B]'}`} />
                     </div>
                 </form>
 
-                {/* Actions */}
                 <div className="px-8 py-6 border-t border-slate-100 flex justify-between items-center bg-white rounded-b-2xl">
                     <div className="flex-1">
                         {editingEvent && (
-                            <button
-                                type="button"
-                                onClick={handleDelete}
-                                className="text-sm font-bold text-rose-500 hover:text-rose-700 transition-colors"
-                            >
-                                Delete Event
+                            <button type="button" onClick={() => setShowDeleteConfirm(true)} className="text-sm font-bold text-rose-500 hover:text-rose-700 transition-colors flex items-center gap-2">
+                                <Trash2 size={16} /> Delete Event
                             </button>
                         )}
                     </div>
