@@ -48,5 +48,9 @@ const userSlice = createSlice({
   }
 });
 
+// SELECTOR: This filters the users for your Booking Dropdown
+export const selectConfirmedUsers = (state) => 
+  (state.users?.items || []).filter(user => user.status === 'CONFIRMED');
+
 export const { loadUserSpecificData, setFilter, setUsers, addUserToStore, updateUserInStore, removeUserFromStore } = userSlice.actions;
 export default userSlice.reducer;

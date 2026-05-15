@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, Smartphone, CreditCard, Banknote, Wallet, ChevronDown, Check, Minus, Plus, FileText, Music, AlertCircle, PartyPopper } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { Calendar, Smartphone, CreditCard, Banknote, Wallet, ChevronDown, Check, Minus, Plus, FileText, Music, PartyPopper, User, Search } from "lucide-react";
 import useApi from "../hooks/useApi";
 
-// --- SUCCESS MODAL COMPONENT (Matches image_23cc45.png) ---
+// --- SUCCESS MODAL COMPONENT ---
 const SuccessModal = ({ isOpen, onClose, bookingDetails }) => {
   if (!isOpen) return null;
   return (
@@ -11,29 +11,19 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails }) => {
         <div className="w-24 h-24 bg-[#D1FAE5] text-[#059669] rounded-full flex items-center justify-center mx-auto mb-8">
           <PartyPopper size={44} />
         </div>
-        
         <h2 className="text-[28px] font-black text-[#1E293B] mb-3">Booking Confirmed!</h2>
-        <p className="text-[#64748B] text-lg mb-10 leading-relaxed">
-          Your tickets have been reserved successfully.
-        </p>
-        
-        <div className="bg-[#F8FAFC] rounded-[24px] p-6 mb-10 space-y-4">
+        <p className="text-[#64748B] text-lg mb-10 leading-relaxed">Your tickets have been reserved successfully.</p>
+        <div className="bg-[#F8FAFC] rounded-[24px] p-6 mb-10 space-y-4 text-left">
           <div className="flex justify-between items-center">
             <span className="text-[13px] font-bold text-[#94A3B8] uppercase tracking-[1px]">Booking ID</span>
             <span className="font-bold text-[#6366F1]">#{bookingDetails?.bookingId || "N/A"}</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-[13px] font-bold text-[#94A3B8] uppercase tracking-[1px]">Customer</span>
-            <span className="font-bold text-[#1E293B]">{bookingDetails?.customerName || "Guest"}</span>
+            <span className="font-bold text-[#1E293B] text-right">{bookingDetails?.customerName || "Guest"}</span>
           </div>
         </div>
-
-        <button 
-          onClick={onClose}
-          className="w-full py-5 bg-[#0F172A] hover:bg-slate-800 text-white rounded-[20px] font-bold text-lg transition-all active:scale-[0.98]"
-        >
-          Great, thanks!
-        </button>
+        <button onClick={onClose} className="w-full py-5 bg-[#0F172A] hover:bg-slate-800 text-white rounded-[20px] font-bold text-lg transition-all active:scale-[0.98]">Great, thanks!</button>
       </div>
     </div>
   );
@@ -41,11 +31,15 @@ const SuccessModal = ({ isOpen, onClose, bookingDetails }) => {
 
 const NewBookingTab = () => {
   const { execute, loading } = useApi();
-  const dropdownRef = useRef(null);
+  const eventDropdownRef = useRef(null);
+  const userDropdownRef = useRef(null);
 
+  // States
   const [events, setEvents] = useState([]);
+  const [users, setUsers] = useState([]); // Store fetched staff/users
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showEventDropdown, setShowEventDropdown] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
 
@@ -64,36 +58,44 @@ const NewBookingTab = () => {
     { id: "Wallet", sub: "Paytm, PhonePe", icon: <Wallet size={20} /> },
   ];
 
+  // Fetch Events and Users
+  const fetchData = useCallback(async () => {
+    try {
+      const [eventRes, userRes] = await Promise.all([
+        execute("/events"),
+        execute("/staff") // Fetching from staff/users endpoint
+      ]);
+
+      // Handle Events
+      const eventsList = eventRes?.data?.events || eventRes?.data || [];
+      const today = new Date().setHours(0, 0, 0, 0);
+      setEvents(Array.isArray(eventsList) ? eventsList.filter(e => new Date(e.date) >= today) : []);
+
+      // Handle Users (Filter for CONFIRMED only)
+      const userList = userRes?.data?.data || userRes?.data || [];
+      setUsers(Array.isArray(userList) ? userList.filter(u => u.status === "CONFIRMED") : []);
+    } catch (error) {
+      console.error("Fetch failed:", error);
+    }
+  }, [execute]);
+
   useEffect(() => {
-    fetchEvents();
+    fetchData();
     const handleOutsideClick = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowDropdown(false);
+      if (eventDropdownRef.current && !eventDropdownRef.current.contains(e.target)) setShowEventDropdown(false);
+      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target)) setShowUserDropdown(false);
     };
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, []);
+  }, [fetchData]);
 
-  const fetchEvents = async () => {
-    try {
-      const response = await execute("/events");
-      const eventsList = response?.data?.events || response?.data || [];
-      const today = new Date().setHours(0, 0, 0, 0);
-      const activeEvents = Array.isArray(eventsList) 
-        ? eventsList.filter(e => new Date(e.date) >= today) 
-        : [];
-      setEvents(activeEvents);
-    } catch (error) {
-      console.error("Event fetch failed:", error);
-    }
-  };
-
+  // UI Helpers
   const getAvailabilityStatus = (booked, capacity) => {
     const remaining = capacity - booked;
     const ratio = (remaining / capacity) * 100;
-    if (remaining <= 0) return { label: "Sold Out", color: "bg-slate-400", bg: "bg-slate-100", text: "text-slate-500", isSoldOut: true };
-    if (ratio <= 15) return { label: "Almost Full", color: "bg-rose-500", bg: "bg-rose-100", text: "text-rose-600", isSoldOut: false };
-    if (ratio <= 40) return { label: "Filling Fast", color: "bg-amber-500", bg: "bg-amber-100", text: "text-amber-600", isSoldOut: false };
-    return { label: "Available", color: "bg-emerald-500", bg: "bg-emerald-100", text: "text-emerald-600", isSoldOut: false };
+    if (remaining <= 0) return { label: "Sold Out", bg: "bg-slate-100", text: "text-slate-500", isSoldOut: true };
+    if (ratio <= 15) return { label: "Almost Full", bg: "bg-rose-100", text: "text-rose-600", isSoldOut: false };
+    return { label: "Available", bg: "bg-emerald-100", text: "text-emerald-600", isSoldOut: false };
   };
 
   const subtotal = useMemo(() => (selectedEvent ? selectedEvent.price * formData.tickets : 0), [selectedEvent, formData.tickets]);
@@ -105,65 +107,60 @@ const NewBookingTab = () => {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
+  const handleSelectUser = (user) => {
+    setFormData(prev => ({
+      ...prev,
+      customerName: user.name,
+      email: user.email
+    }));
+    setShowUserDropdown(false);
+  };
+
   const validate = () => {
     const newErrors = {};
-    if (!selectedEvent) newErrors.event = "Please select an event";
-    if (!formData.customerName.trim()) newErrors.customerName = "Customer name is required";
-    if (!formData.email.trim()) newErrors.email = "Email is required";
-    else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)) newErrors.email = "Enter valid email address";
+    if (!selectedEvent) newErrors.event = "Required";
+    if (!formData.customerName.trim()) newErrors.customerName = "Required";
+    if (!formData.email.trim()) newErrors.email = "Required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-const handleConfirmBooking = async () => {
+  const handleConfirmBooking = async () => {
     if (!validate()) return;
     try {
       const payload = { ...formData, eventId: selectedEvent._id };
       const result = await execute("/bookings", "POST", payload);
-      
-      // Based on your console image (image_23b5de.png):
-      // The path is result -> data -> booking -> bookingId
       const actualBookingData = result?.data?.booking;
 
       setConfirmedBooking({
-        bookingId: actualBookingData?.bookingId || "N/A", // Correct path
+        bookingId: actualBookingData?.bookingId || "N/A",
         customerName: actualBookingData?.customerName || formData.customerName
       });
-      
       setShowSuccessModal(true);
-
-      // Reset form fields
       setFormData({ customerName: "", email: "", tickets: 1, paymentMode: "Online / UPI" });
       setSelectedEvent(null);
-      fetchEvents();
+      fetchData();
     } catch (error) {
       console.error("Booking failed", error);
     }
   };
+
   return (
     <div className="min-h-screen bg-[#F5F7FB] p-4 lg:p-8">
-      <SuccessModal 
-        isOpen={showSuccessModal} 
-        onClose={() => setShowSuccessModal(false)} 
-        bookingDetails={confirmedBooking}
-      />
+      <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} bookingDetails={confirmedBooking} />
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-12 gap-6">
-        {/* Left Side: Form */}
         <div className="xl:col-span-7">
           <div className="bg-white border border-slate-200 rounded-[32px] p-6 lg:p-10 shadow-sm">
             <h1 className="text-3xl font-black text-slate-800 mb-10">Create Booking</h1>
 
             <div className="space-y-8">
-              {/* Event Dropdown */}
-              <div className="relative" ref={dropdownRef}>
+              {/* Event Select Dropdown */}
+              <div className="relative" ref={eventDropdownRef}>
                 <label className="flex items-center gap-2 text-xs font-bold uppercase text-slate-500 mb-3 tracking-widest">
                   <Calendar size={14} className="text-indigo-600" /> Select Event
                 </label>
-                <div
-                  onClick={() => setShowDropdown(!showDropdown)}
-                  className={`w-full bg-slate-50 border-2 rounded-2xl px-5 py-4 cursor-pointer flex items-center justify-between transition-all ${errors.event ? "border-red-300" : "border-slate-200 hover:border-indigo-300"}`}
-                >
+                <div onClick={() => setShowEventDropdown(!showEventDropdown)} className={`w-full bg-slate-50 border-2 rounded-2xl px-5 py-4 cursor-pointer flex items-center justify-between transition-all ${errors.event ? "border-red-300" : "border-slate-200"}`}>
                   {selectedEvent ? (
                     <div className="flex items-center gap-4">
                       <img src={selectedEvent.image} className="w-12 h-12 rounded-xl object-cover" alt="" />
@@ -173,21 +170,16 @@ const handleConfirmBooking = async () => {
                       </div>
                     </div>
                   ) : <span className="text-slate-400">Choose an event...</span>}
-                  <ChevronDown size={20} className={`transition-transform text-slate-400 ${showDropdown ? "rotate-180" : ""}`} />
+                  <ChevronDown size={20} className={`transition-transform text-slate-400 ${showEventDropdown ? "rotate-180" : ""}`} />
                 </div>
-
-                {showDropdown && (
+                {showEventDropdown && (
                   <div className="absolute z-50 mt-3 w-full bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden p-2">
-                    <div className="max-h-80 overflow-y-auto space-y-1">
+                    <div className="max-h-60 overflow-y-auto space-y-1">
                       {events.map((event) => {
                         const status = getAvailabilityStatus(event.bookedCount, event.capacity);
                         return (
-                          <div
-                            key={event._id}
-                            onClick={() => { if(!status.isSoldOut) { setSelectedEvent(event); setShowDropdown(false); } }}
-                            className={`p-4 rounded-2xl transition-all ${status.isSoldOut ? "opacity-50 cursor-not-allowed bg-slate-50" : "hover:bg-indigo-50 cursor-pointer"}`}
-                          >
-                            <div className="flex justify-between items-start">
+                          <div key={event._id} onClick={() => { if(!status.isSoldOut) { setSelectedEvent(event); setShowEventDropdown(false); } }} className={`p-4 rounded-2xl transition-all ${status.isSoldOut ? "opacity-50 cursor-not-allowed" : "hover:bg-indigo-50 cursor-pointer"}`}>
+                            <div className="flex justify-between items-center">
                               <div className="flex gap-3">
                                 <img src={event.image} className="w-10 h-10 rounded-lg object-cover" alt="" />
                                 <div>
@@ -195,9 +187,7 @@ const handleConfirmBooking = async () => {
                                   <p className="text-[10px] text-slate-500">{event.date}</p>
                                 </div>
                               </div>
-                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${status.bg} ${status.text}`}>
-                                {status.label}
-                              </span>
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${status.bg} ${status.text}`}>{status.label}</span>
                             </div>
                           </div>
                         );
@@ -207,31 +197,54 @@ const handleConfirmBooking = async () => {
                 )}
               </div>
 
-              {/* Customer Info */}
+              {/* Customer Search Dropdown */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+                <div className="relative" ref={userDropdownRef}>
                   <label className="text-xs font-bold text-slate-500 uppercase block mb-3">Customer Name</label>
-                  <input
-                    type="text"
-                    value={formData.customerName}
-                    onChange={(e) => handleChange("customerName", e.target.value)}
-                    className="w-full px-5 py-4 rounded-2xl border-2 bg-slate-50 border-slate-100 focus:border-indigo-400 outline-none transition-all"
-                    placeholder="e.g. Alex"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.customerName}
+                      onFocus={() => setShowUserDropdown(true)}
+                      onChange={(e) => handleChange("customerName", e.target.value)}
+                      className="w-full px-5 py-4 pl-12 rounded-2xl border-2 bg-slate-50 border-slate-100 focus:border-indigo-400 outline-none transition-all"
+                      placeholder="Search confirmed users..."
+                    />
+                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  </div>
+                  
+                  {showUserDropdown && users.length > 0 && (
+                    <div className="absolute z-50 mt-2 w-full bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                      {users.filter(u => u.name.toLowerCase().includes(formData.customerName.toLowerCase())).map(user => (
+                        <div 
+                          key={user._id} 
+                          onClick={() => handleSelectUser(user)}
+                          className="px-5 py-3 hover:bg-slate-50 cursor-pointer flex items-center gap-3 transition-colors"
+                        >
+                          <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600"><User size={14}/></div>
+                          <div>
+                            <p className="text-sm font-bold text-slate-800">{user.name}</p>
+                            <p className="text-[10px] text-slate-400">{user.email}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase block mb-3">Email Address</label>
                   <input
                     type="email"
+                    readOnly // User email is fetched based on selected name
                     value={formData.email}
-                    onChange={(e) => handleChange("email", e.target.value)}
-                    className="w-full px-5 py-4 rounded-2xl border-2 bg-slate-50 border-slate-100 focus:border-indigo-400 outline-none transition-all"
-                    placeholder="alex@example.com"
+                    className="w-full px-5 py-4 rounded-2xl border-2 bg-slate-100 border-slate-100 text-slate-500 cursor-not-allowed outline-none"
+                    placeholder="Auto-populated..."
                   />
                 </div>
               </div>
 
-              {/* Tickets */}
+              {/* Tickets and Payment remain unchanged */}
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase block mb-4">Tickets</label>
                 <div className="flex items-center gap-4 bg-white border border-slate-200 p-2 w-fit rounded-2xl">
@@ -241,14 +254,9 @@ const handleConfirmBooking = async () => {
                 </div>
               </div>
 
-              {/* Payment Mode Selection */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {paymentModes.map((mode) => (
-                  <div
-                    key={mode.id}
-                    onClick={() => handleChange("paymentMode", mode.id)}
-                    className={`p-5 rounded-3xl border-2 cursor-pointer transition-all flex items-center justify-between ${formData.paymentMode === mode.id ? "border-indigo-500 bg-indigo-50" : "border-slate-100 hover:border-slate-200"}`}
-                  >
+                  <div key={mode.id} onClick={() => handleChange("paymentMode", mode.id)} className={`p-5 rounded-3xl border-2 cursor-pointer transition-all flex items-center justify-between ${formData.paymentMode === mode.id ? "border-indigo-500 bg-indigo-50" : "border-slate-100 hover:border-slate-200"}`}>
                     <div className="flex gap-4 items-center">
                       <div className="text-slate-400">{mode.icon}</div>
                       <div>
@@ -264,27 +272,22 @@ const handleConfirmBooking = async () => {
           </div>
         </div>
 
-        {/* Right Side: Summary */}
+        {/* Right Summary remains unchanged */}
         <div className="xl:col-span-5">
           <div className="bg-white border border-slate-200 rounded-[32px] p-8 sticky top-6 shadow-sm">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center"><FileText size={22} className="text-indigo-700" /></div>
               <h2 className="text-xl font-black text-slate-800">Summary</h2>
             </div>
-
             {selectedEvent ? (
               <div className="space-y-6">
                 <div className="flex justify-between text-sm"><span className="text-slate-500">Subtotal</span><span className="font-bold">₹{subtotal.toLocaleString()}</span></div>
-                <div className="flex justify-between text-sm border-b border-dashed border-slate-200 pb-4"><span className="text-slate-500">Fee</span><span className="font-bold">₹{fee.toLocaleString()}</span></div>
+                <div className="flex justify-between text-sm border-b border-dashed border-slate-200 pb-4"><span className="text-slate-500">Fee (3%)</span><span className="font-bold">₹{fee.toLocaleString()}</span></div>
                 <div className="flex justify-between items-end">
                   <span className="text-sm text-slate-500">Total</span>
                   <span className="text-3xl font-black text-indigo-700">₹{total.toLocaleString()}</span>
                 </div>
-                <button
-                  onClick={handleConfirmBooking}
-                  disabled={loading}
-                  className="w-full py-5 rounded-2xl font-bold text-white bg-[#0F172A] hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2"
-                >
+                <button onClick={handleConfirmBooking} disabled={loading} className="w-full py-5 rounded-2xl font-bold text-white bg-[#0F172A] hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2">
                   {loading ? "Processing..." : <><Check size={20}/> Confirm Booking</>}
                 </button>
               </div>
